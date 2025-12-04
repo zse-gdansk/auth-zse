@@ -6,6 +6,7 @@ import (
 
 	"github.com/Anvoria/authly/config"
 	"github.com/Anvoria/authly/internal/database"
+	"github.com/Anvoria/authly/internal/router"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -22,13 +23,13 @@ func main() {
 
 	app := fiber.New()
 
-	setupRoutes(app)
-
 	if err := database.ConnectDB(cfg); err != nil {
 		slog.Error("Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
 	slog.Info("Database connected successfully")
+
+	router.SetupRoutes(app)
 
 	addr := cfg.Server.Address()
 	slog.Info("Server starting", "address", addr)
@@ -59,13 +60,4 @@ func initLogger(level string) {
 
 	handler := slog.NewTextHandler(os.Stdout, opts)
 	slog.SetDefault(slog.New(handler))
-}
-
-func setupRoutes(app *fiber.App) {
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Authly API",
-			"status":  "running",
-		})
-	})
 }
