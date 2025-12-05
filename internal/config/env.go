@@ -7,14 +7,14 @@ import (
 // Environment holds the environment variables
 type Environment struct {
 	ConfigPath string `env:"CONFIG_PATH" default:"config.yaml"`
-	JWTSecret string `env:"JWT_SECRET" default:""`
+	JWTSecret  string `env:"JWT_SECRET" default:""`
 }
 
 // LoadEnv loads the environment variables
 func LoadEnv() *Environment {
 	return &Environment{
 		ConfigPath: getEnv("CONFIG_PATH", "config.yaml"),
-		JWTSecret: getEnv("JWT_SECRET", ""),
+		JWTSecret:  getEnv("JWT_SECRET", ""),
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/Anvoria/authly/internal/config"
 	"github.com/Anvoria/authly/internal/database"
+	"github.com/Anvoria/authly/internal/migrations"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -20,6 +21,12 @@ func Start(cfg *config.Config) error {
 		return err
 	}
 	slog.Info("Database connected successfully")
+
+	if err := migrations.RunMigrations(database.DB); err != nil {
+		slog.Error("Failed to run migrations", "error", err)
+		return err
+	}
+	slog.Info("Migrations completed successfully")
 
 	SetupRoutes(app)
 
