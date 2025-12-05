@@ -42,7 +42,7 @@ func (r *repository) UpdateHash(id uuid.UUID, oldHash, newHash string, newExpiry
 		Updates(map[string]any{
 			"refresh_hash": newHash,
 			"expires_at":   newExpiry,
-			"last_used":    time.Now().UTC(),
+			"last_used_at": time.Now().UTC(),
 		})
 
 	if res.Error != nil {
