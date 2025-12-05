@@ -2,6 +2,15 @@ package user
 
 import "errors"
 
+var (
+	// ErrEmailExists is returned when trying to register with an email that already exists
+	ErrEmailExists = errors.New("email already exists")
+	// ErrUsernameExists is returned when trying to register with a username that already exists
+	ErrUsernameExists = errors.New("username already exists")
+	// ErrUsernameRequired is returned when trying to register with an empty username
+	ErrUsernameRequired = errors.New("username is required")
+)
+
 // RegisterRequest represents the input for user registration
 type RegisterRequest struct {
 	Username  string
@@ -34,12 +43,16 @@ func (s *service) Register(req RegisterRequest) (*User, error) {
 		return nil, err
 	}
 
+	if req.Username == "" {
+		return nil, ErrUsernameRequired
+	}
+
 	if _, err := s.repo.GetByEmail(req.Email); err == nil {
-		return nil, errors.New("email already exists")
+		return nil, ErrEmailExists
 	}
 
 	if _, err := s.repo.GetByUsername(req.Username); err == nil {
-		return nil, errors.New("username already exists")
+		return nil, ErrUsernameExists
 	}
 
 	user := &User{

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Anvoria/authly/internal/utils"
@@ -22,8 +23,7 @@ func TestService_Register(t *testing.T) {
 	tests := []struct {
 		name    string
 		req     RegisterRequest
-		wantErr bool
-		errMsg  string
+		wantErr error
 	}{
 		{
 			name: "successful registration",
@@ -34,31 +34,51 @@ func TestService_Register(t *testing.T) {
 				FirstName: "Test",
 				LastName:  "User",
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
-			name: "duplicate email",
+			name: "empty username",
 			req: RegisterRequest{
-				Username:  "testuser2",
+				Username:  "",
 				Email:     "test@example.com",
 				Password:  "securepassword123",
 				FirstName: "Test",
 				LastName:  "User",
 			},
-			wantErr: true,
-			errMsg:  "email already exists",
+			wantErr: ErrUsernameRequired,
+		},
+		{
+			name: "duplicate email",
+			req: RegisterRequest{
+				Username:  "testuser2",
+				Email:     "testduplicate@example.com",
+				Password:  "securepassword123",
+				FirstName: "Test",
+				LastName:  "User",
+			},
+			wantErr: ErrEmailExists,
 		},
 		{
 			name: "duplicate username",
 			req: RegisterRequest{
 				Username:  "testuser",
-				Email:     "different@example.com",
+				Email:     "testduplicateuser@example.com",
 				Password:  "securepassword123",
 				FirstName: "Test",
 				LastName:  "User",
 			},
-			wantErr: true,
-			errMsg:  "username already exists",
+			wantErr: ErrUsernameExists,
+		},
+		{
+			name: "empty email",
+			req: RegisterRequest{
+				Username:  "emptyemailuser",
+				Email:     "",
+				Password:  "securepassword123",
+				FirstName: "Test",
+				LastName:  "User",
+			},
+			wantErr: nil,
 		},
 	}
 
@@ -66,9 +86,9 @@ func TestService_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db.Exec("DELETE FROM users")
 
-			if tt.wantErr {
-				switch tt.errMsg {
-				case "email already exists":
+			// Create existing user for duplicate tests
+			if tt.wantErr != nil {
+				if errors.Is(tt.wantErr, ErrEmailExists) {
 					_, err := service.Register(RegisterRequest{
 						Username:  "existinguser",
 						Email:     tt.req.Email,
@@ -79,7 +99,7 @@ func TestService_Register(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Failed to create existing user for duplicate email test: %v", err)
 					}
-				case "username already exists":
+				} else if errors.Is(tt.wantErr, ErrUsernameExists) {
 					_, err := service.Register(RegisterRequest{
 						Username:  tt.req.Username,
 						Email:     "existing@example.com",
@@ -95,13 +115,13 @@ func TestService_Register(t *testing.T) {
 
 			user, err := service.Register(tt.req)
 
-			if tt.wantErr {
+			if tt.wantErr != nil {
 				if err == nil {
 					t.Errorf("Register() expected error but got none")
 					return
 				}
-				if err.Error() != tt.errMsg {
-					t.Errorf("Register() error = %v, want %v", err.Error(), tt.errMsg)
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("Register() error = %v, want %v", err, tt.wantErr)
 				}
 				if user != nil {
 					t.Errorf("Register() expected nil user on error, got %v", user)
