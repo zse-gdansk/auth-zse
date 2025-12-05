@@ -28,7 +28,12 @@ func Start(cfg *config.Config) error {
 	}
 	slog.Info("Migrations completed successfully")
 
-	SetupRoutes(app)
+	envConfig := config.LoadEnv()
+	slog.Info("Environment loaded", "environment", envConfig.Environment.String())
+	if err := SetupRoutes(app, envConfig); err != nil {
+		slog.Error("Failed to setup routes", "error", err)
+		return err
+	}
 
 	addr := cfg.Server.Address()
 	slog.Info("Server starting", "address", addr)

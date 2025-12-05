@@ -10,6 +10,7 @@ type Repository interface {
 	GetByUsername(username string) (*User, error)
 	Update(user *User) error
 	Delete(id string) error
+	VerifyPassword(u *User, password string) bool
 }
 
 // repository struct for user operations
@@ -68,4 +69,9 @@ func (r *repository) Delete(id string) error {
 		return err
 	}
 	return nil
+}
+
+// VerifyPassword verifies if the provided password matches the user's hashed password
+func (r *repository) VerifyPassword(u *User, password string) bool {
+	return VerifyPassword(password, u.Password)
 }

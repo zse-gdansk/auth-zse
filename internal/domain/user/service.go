@@ -23,7 +23,6 @@ type RegisterRequest struct {
 // Service interface for user operations
 type Service interface {
 	Register(req RegisterRequest) (*User, error)
-	VerifyPassword(u *User, password string) bool
 }
 
 // service struct for user operations
@@ -69,9 +68,4 @@ func (s *service) Register(req RegisterRequest) (*User, error) {
 	}
 
 	return user, nil
-}
-
-// VerifyPassword verifies if the provided password matches the user's hashed password
-func (s *service) VerifyPassword(u *User, password string) bool {
-	return VerifyPassword(password, u.Password)
 }

@@ -157,11 +157,11 @@ func TestService_Register(t *testing.T) {
 					t.Errorf("Register() isActive = false, want true")
 				}
 
-				if !service.VerifyPassword(user, tt.req.Password) {
+				if !repo.VerifyPassword(user, tt.req.Password) {
 					t.Errorf("VerifyPassword() failed for registered user")
 				}
 
-				if service.VerifyPassword(user, "wrongpassword") {
+				if repo.VerifyPassword(user, "wrongpassword") {
 					t.Errorf("VerifyPassword() should fail for wrong password")
 				}
 			}
@@ -211,7 +211,7 @@ func TestService_VerifyPassword(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := service.VerifyPassword(user, tt.password)
+			got := repo.VerifyPassword(user, tt.password)
 			if got != tt.want {
 				t.Errorf("VerifyPassword() = %v, want %v", got, tt.want)
 			}
