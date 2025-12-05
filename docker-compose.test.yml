@@ -1,16 +1,16 @@
 services:
-  postgres:
+  postgres-test:
     image: postgres:18-alpine
-    container_name: authly-postgres
+    container_name: authly-postgres-test
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: authly
+      POSTGRES_DB: authly_test
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_test_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
@@ -18,6 +18,4 @@ services:
       retries: 5
 
 volumes:
-  postgres_data:
-
-
+  postgres_test_data:

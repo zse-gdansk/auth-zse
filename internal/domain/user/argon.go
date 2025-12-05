@@ -39,35 +39,35 @@ func HashPassword(password string) (string, error) {
 
 // VerifyPassword verifies a password against an Argon2id hash
 func VerifyPassword(password, encodedHash string) bool {
-    parts := strings.Split(encodedHash, "$")
-    if len(parts) != 6 || parts[1] != "argon2id" {
-        return false
-    }
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
+		return false
+	}
 
-    var version int
-    var memory, iterations uint32
-    var parallelism uint8
-    
-    _, err := fmt.Sscanf(parts[2], "v=%d", &version)
-    if err != nil || version != argon2.Version {
-        return false
-    }
-    
-    _, err = fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism)
-    if err != nil {
-        return false
-    }
+	var version int
+	var memory, iterations uint32
+	var parallelism uint8
 
-    salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-    if err != nil {
-        return false
-    }
+	_, err := fmt.Sscanf(parts[2], "v=%d", &version)
+	if err != nil || version != argon2.Version {
+		return false
+	}
 
-    hash, err := base64.RawStdEncoding.DecodeString(parts[5])
-    if err != nil {
-        return false
-    }
+	_, err = fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism)
+	if err != nil {
+		return false
+	}
 
-    otherHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(hash)))
-    return subtle.ConstantTimeCompare(hash, otherHash) == 1
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil {
+		return false
+	}
+
+	hash, err := base64.RawStdEncoding.DecodeString(parts[5])
+	if err != nil {
+		return false
+	}
+
+	otherHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(hash)))
+	return subtle.ConstantTimeCompare(hash, otherHash) == 1
 }
