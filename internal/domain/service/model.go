@@ -7,6 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// DefaultAuthlyServiceID is the fixed UUID for the default authly system service
+const DefaultAuthlyServiceID = "00000000-0000-0000-0000-000000000001"
+
+// DefaultAuthlyServiceCode is the code for the default authly service
+const DefaultAuthlyServiceCode = "authly"
+
 // Service represents a service in the system
 type Service struct {
 	database.BaseModel
@@ -14,6 +20,7 @@ type Service struct {
 	Name        string `gorm:"column:name;not null;size:255"`
 	Description string `gorm:"column:description;type:text"`
 	Active      bool   `gorm:"column:active;default:true"`
+	IsSystem    bool   `gorm:"column:is_system;default:false"`
 }
 
 func (Service) TableName() string {
@@ -29,6 +36,7 @@ type ServiceResponse struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Active      bool      `json:"active"`
+	IsSystem    bool      `json:"is_system"`
 }
 
 // ToResponse converts a Service to ServiceResponse
@@ -41,5 +49,6 @@ func (s *Service) ToResponse() *ServiceResponse {
 		Name:        s.Name,
 		Description: s.Description,
 		Active:      s.Active,
+		IsSystem:    s.IsSystem,
 	}
 }

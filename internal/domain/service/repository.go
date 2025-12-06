@@ -66,7 +66,28 @@ func (r *repository) FindActive() ([]*Service, error) {
 
 // Update updates a service
 func (r *repository) Update(service *Service) error {
-	if err := r.db.Save(service).Error; err != nil {
+	var existing Service
+	if err := r.db.Where("id = ?", service.ID).First(&existing).Error; err != nil {
+		return err
+	}
+
+	if existing.IsSystem {
+		service.Code = existing.Code
+		service.IsSystem = true
+	}
+
+	updates := map[string]any{
+		"name":        service.Name,
+		"description": service.Description,
+		"active":      service.Active,
+	}
+
+	if !existing.IsSystem {
+		updates["code"] = service.Code
+		updates["is_system"] = service.IsSystem
+	}
+
+	if err := r.db.Model(&Service{}).Where("id = ?", service.ID).Updates(updates).Error; err != nil {
 		return err
 	}
 	return nil
@@ -74,6 +95,15 @@ func (r *repository) Update(service *Service) error {
 
 // Delete deletes a service (soft delete)
 func (r *repository) Delete(id string) error {
+	var service Service
+	if err := r.db.Where("id = ?", id).First(&service).Error; err != nil {
+		return err
+	}
+
+	if service.IsSystem {
+		return ErrCannotDeleteSystemService
+	}
+
 	if err := r.db.Delete(&Service{}, id).Error; err != nil {
 		return err
 	}
