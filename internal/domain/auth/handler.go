@@ -6,13 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/Anvoria/authly/internal/domain/user"
 	"github.com/Anvoria/authly/internal/utils"
 )
-
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
 
 type Handler struct {
 	authService *Service
@@ -23,7 +19,7 @@ func NewHandler(s *Service) *Handler {
 }
 
 func (h *Handler) Login(c *fiber.Ctx) error {
-	var req LoginRequest
+	var req user.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return utils.ErrorResponse(c, "invalid_body", fiber.StatusBadRequest)
 	}

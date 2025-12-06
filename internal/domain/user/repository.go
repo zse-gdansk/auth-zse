@@ -5,9 +5,9 @@ import "gorm.io/gorm"
 // Repository interface for user operations
 type Repository interface {
 	Create(user *User) error
-	GetByID(id string) (*User, error)
-	GetByEmail(email string) (*User, error)
-	GetByUsername(username string) (*User, error)
+	FindByID(id string) (*User, error)
+	FindByEmail(email string) (*User, error)
+	FindByUsername(username string) (*User, error)
 	Update(user *User) error
 	Delete(id string) error
 	VerifyPassword(u *User, password string) bool
@@ -28,8 +28,8 @@ func (r *repository) Create(user *User) error {
 	return r.db.Create(user).Error
 }
 
-// GetByID gets a user by ID
-func (r *repository) GetByID(id string) (*User, error) {
+// FindByID gets a user by ID
+func (r *repository) FindByID(id string) (*User, error) {
 	var user User
 	if err := r.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
@@ -37,8 +37,8 @@ func (r *repository) GetByID(id string) (*User, error) {
 	return &user, nil
 }
 
-// GetByEmail gets a user by email
-func (r *repository) GetByEmail(email string) (*User, error) {
+// FindByEmail gets a user by email
+func (r *repository) FindByEmail(email string) (*User, error) {
 	var user User
 	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
@@ -46,8 +46,8 @@ func (r *repository) GetByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-// GetByUsername gets a user by username
-func (r *repository) GetByUsername(username string) (*User, error) {
+// FindByUsername gets a user by username
+func (r *repository) FindByUsername(username string) (*User, error) {
 	var user User
 	if err := r.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err

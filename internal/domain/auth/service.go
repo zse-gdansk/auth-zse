@@ -60,7 +60,7 @@ func (s *Service) GenerateAccessToken(sub, sid string, aud []string) (string, er
 }
 
 func (s *Service) Login(username, password, userAgent, ip string) (*LoginResponse, error) {
-	u, err := s.Users.GetByUsername(username)
+	u, err := s.Users.FindByUsername(username)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}

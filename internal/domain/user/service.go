@@ -11,15 +11,6 @@ var (
 	ErrUsernameRequired = errors.New("username is required")
 )
 
-// RegisterRequest represents the input for user registration
-type RegisterRequest struct {
-	Username  string
-	Email     string
-	Password  string
-	FirstName string
-	LastName  string
-}
-
 // Service interface for user operations
 type Service interface {
 	Register(req RegisterRequest) (*User, error)
@@ -46,11 +37,11 @@ func (s *service) Register(req RegisterRequest) (*User, error) {
 		return nil, ErrUsernameRequired
 	}
 
-	if _, err := s.repo.GetByEmail(req.Email); err == nil {
+	if _, err := s.repo.FindByEmail(req.Email); err == nil {
 		return nil, ErrEmailExists
 	}
 
-	if _, err := s.repo.GetByUsername(req.Username); err == nil {
+	if _, err := s.repo.FindByUsername(req.Username); err == nil {
 		return nil, ErrUsernameExists
 	}
 

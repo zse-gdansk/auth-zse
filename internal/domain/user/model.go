@@ -46,3 +46,18 @@ func (u *User) ToResponse() *UserResponse {
 		IsActive:  u.IsActive,
 	}
 }
+
+// LoginRequest represents the input for user login
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// RegisterRequest represents the input for user registration
+type RegisterRequest struct {
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
