@@ -10,10 +10,10 @@ import (
 
 // LoginResponse represents the response from a successful login
 type LoginResponse struct {
-	AccessToken  string     `json:"access_token"`
-	RefreshToken string     `json:"refresh_token"`
-	RefreshSID   string     `json:"refresh_sid"`
-	User         *user.User `json:"user"`
+	AccessToken  string             `json:"access_token"`
+	RefreshToken string             `json:"refresh_token"`
+	RefreshSID   string             `json:"refresh_sid"`
+	User         *user.UserResponse `json:"user"`
 }
 
 // Service handles authentication operations
@@ -62,7 +62,7 @@ func (s *Service) GenerateAccessToken(sub, sid string, aud []string) (string, er
 func (s *Service) Login(username, password, userAgent, ip string) (*LoginResponse, error) {
 	u, err := s.Users.GetByUsername(username)
 	if err != nil {
-		return nil, err
+		return nil, ErrInvalidCredentials
 	}
 
 	if !user.VerifyPassword(password, u.Password) {
@@ -84,6 +84,6 @@ func (s *Service) Login(username, password, userAgent, ip string) (*LoginRespons
 		AccessToken:  access,
 		RefreshToken: secret,
 		RefreshSID:   sid.String(),
-		User:         u,
+		User:         u.ToResponse(),
 	}, nil
 }
