@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Anvoria/authly/internal/config"
 	"github.com/Anvoria/authly/internal/domain/auth"
@@ -195,6 +196,12 @@ func listKeys(keysPath, activeKID string) {
 	}
 
 	fmt.Printf("Keys in %s:\n\n", keysPath)
+
+	normalizedActiveKID := activeKID
+	if !strings.HasPrefix(normalizedActiveKID, "key-") {
+		normalizedActiveKID = fmt.Sprintf("key-%s", normalizedActiveKID)
+	}
+
 	for i := 0; i < keySet.Len(); i++ {
 		key, ok := keySet.Key(i)
 		if !ok {
@@ -203,7 +210,7 @@ func listKeys(keysPath, activeKID string) {
 
 		kid, _ := key.KeyID()
 		active := ""
-		if kid == activeKID {
+		if kid == normalizedActiveKID {
 			active = " (ACTIVE)"
 		}
 		keyID := kid
