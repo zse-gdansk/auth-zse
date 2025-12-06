@@ -59,8 +59,8 @@ func (s *Service) GenerateAccessToken(sub, sid string, aud []string) (string, er
 	return s.KeyStore.Sign(claims)
 }
 
-func (s *Service) Login(email, password, userAgent, ip string) (*LoginResponse, error) {
-	u, err := s.Users.GetByEmail(email)
+func (s *Service) Login(username, password, userAgent, ip string) (*LoginResponse, error) {
+	u, err := s.Users.GetByUsername(username)
 	if err != nil {
 		return nil, err
 	}

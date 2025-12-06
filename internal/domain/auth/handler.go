@@ -10,7 +10,7 @@ import (
 )
 
 type LoginRequest struct {
-	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
@@ -29,7 +29,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	}
 
 	res, err := h.authService.Login(
-		req.Email,
+		req.Username,
 		req.Password,
 		c.Get("User-Agent"),
 		c.IP(),
