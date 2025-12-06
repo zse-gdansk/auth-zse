@@ -29,8 +29,8 @@ type ServerConfig struct {
 
 // AuthConfig holds auth-specific configuration
 type AuthConfig struct {
-	KeysPath    string `yaml:"keys_path"`
-	ActiveKID   string `yaml:"active_kid"`
+	KeysPath  string `yaml:"keys_path"`
+	ActiveKID string `yaml:"active_kid"`
 }
 
 // DatabaseConfig holds database-specific configuration
