@@ -38,7 +38,7 @@ func TestDatabaseConfig_URL(t *testing.T) {
 				DBName:   "production",
 				SSLMode:  "require",
 			},
-			expected: "postgres://admin:p@ss:w0rd!@db.example.com:5433/production?sslmode=require&search_path=public",
+			expected: "postgres://admin:p%40ss%3Aw0rd%21@db.example.com:5433/production?sslmode=require&search_path=public",
 		},
 		{
 			name: "with IPv6 host",

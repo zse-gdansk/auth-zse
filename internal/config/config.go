@@ -84,17 +84,17 @@ func (d *DatabaseConfig) DSN() string {
 
 // URL returns the database connection URL in postgres:// format for golang-migrate
 func (d *DatabaseConfig) URL() string {
-	// URL-encode username and password to handle special characters
-	encodedUser := url.QueryEscape(d.User)
-	encodedPassword := url.QueryEscape(d.Password)
+	// Use url.UserPassword to properly percent-encode username and password
+	userInfo := url.UserPassword(d.User, d.Password)
 
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s&search_path=public",
-		encodedUser,
-		encodedPassword,
-		d.Host,
-		d.Port,
-		d.DBName,
-		d.SSLMode,
-	)
+	// Build URL with proper encoding
+	u := &url.URL{
+		Scheme:   "postgres",
+		User:     userInfo,
+		Host:     fmt.Sprintf("%s:%d", d.Host, d.Port),
+		Path:     "/" + d.DBName,
+		RawQuery: fmt.Sprintf("sslmode=%s&search_path=public", url.QueryEscape(d.SSLMode)),
+	}
+
+	return u.String()
 }
