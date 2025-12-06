@@ -3,8 +3,8 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/Anvoria/authly/internal/domain/user"
 	"github.com/Anvoria/authly/internal/domain/session"
+	"github.com/Anvoria/authly/internal/domain/user"
 	"gorm.io/gorm"
 )
 
