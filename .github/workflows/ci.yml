@@ -10,7 +10,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-
+    
     services:
       postgres:
         image: postgres:18-alpine
@@ -18,11 +18,13 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: authly_test
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -35,28 +37,32 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.4'
-          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install dependencies
+        run: go mod download
 
       - name: Create CI config file
         run: |
           cat > config.ci.yaml << EOF
           app:
             name: "authly"
-
+          
           server:
             host: "0.0.0.0"
             port: 8000
-
+          
           auth:
             keys_path: "keys"
             active_kid: "main"
-
+          
           database:
             host: localhost
             port: 5432
@@ -64,7 +70,7 @@ jobs:
             password: "postgres"
             dbname: "authly_test"
             sslmode: "disable"
-
+          
           logging:
             level: "info"
           EOF
@@ -72,15 +78,16 @@ jobs:
       - name: Create keys directory
         run: mkdir -p keys
 
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Wait for PostgreSQL
         run: |
-          for i in {1..20}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              echo "PostgreSQL is ready"; exit 0;
-            fi
-            echo "Waiting for PostgreSQL... $i"; sleep 1;
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
           done
-          echo "PostgreSQL did not become ready in time"; exit 1
+          echo "PostgreSQL is ready!"
 
       - name: Run go vet
         run: go vet ./...
@@ -93,7 +100,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+            token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build
@@ -111,16 +118,21 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.4'
-          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install dependencies
+        run: go mod download
 
       - name: Build
         run: go build -v ./...
 
       - name: Build binary
         run: go build -o bin/authly ./cmd/main.go
+
