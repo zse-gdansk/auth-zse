@@ -29,6 +29,7 @@ type Service interface {
 	Validate(sessionID uuid.UUID, secret string) (*Session, error)
 	Rotate(sessionID uuid.UUID, oldSecret string, ttl time.Duration) (newSecret string, err error)
 	Revoke(sessionID uuid.UUID) error
+	Exists(sessionID uuid.UUID) (bool, error)
 }
 
 // service struct for session operations
@@ -138,4 +139,21 @@ func (s *service) Rotate(id uuid.UUID, oldSecret string, ttl time.Duration) (str
 // Revoke revokes a session
 func (s *service) Revoke(id uuid.UUID) error {
 	return s.repo.Revoke(id)
+}
+
+// Exists checks if a session exists and is valid (not revoked, not expired)
+func (s *service) Exists(id uuid.UUID) (bool, error) {
+	sess, err := s.repo.FindByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if time.Now().UTC().After(sess.ExpiresAt) {
+		return false, nil
+	}
+
+	return true, nil
 }

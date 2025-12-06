@@ -22,6 +22,7 @@ type LoginResponse struct {
 type AuthService interface {
 	Login(username, password, userAgent, ip string) (*LoginResponse, error)
 	Register(req user.RegisterRequest) (*user.UserResponse, error)
+	IsTokenRevoked(claims *AccessTokenClaims) (bool, error)
 }
 
 // Service handles authentication operations
@@ -129,4 +130,16 @@ func (s *Service) Register(req user.RegisterRequest) (*user.UserResponse, error)
 	}
 
 	return newUser.ToResponse(), nil
+}
+
+// IsTokenRevoked checks if a token has been revoked
+// This is a stub implementation - in production, this should check Redis/cache
+// for revoked tokens (e.g., by jti claim or user:last_logout_at)
+func (s *Service) IsTokenRevoked(claims *AccessTokenClaims) (bool, error) {
+	// TODO: Implement Redis-based revocation check
+	// For now, return false (not revoked)
+	// In production, check:
+	// 1. Redis key: "token:revoked:{jti}" or "user:logout:{userID}"
+	// 2. Compare token issued_at with user's last_logout_at
+	return false, nil
 }
