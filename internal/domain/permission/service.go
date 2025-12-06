@@ -10,20 +10,24 @@ import (
 
 // ServiceInterface defines the interface for permission operations
 type ServiceInterface interface {
-	// BuildScopes builds a map of service codes to bitmasks for a user
+	// BuildScopes builds a map of service codes (with optional resource) to bitmasks for a user
 	BuildScopes(userID string) (map[string]uint64, error)
 
-	// GetUserPermission gets a user's permission bitmask for a service
-	GetUserPermission(userID, serviceID string) (uint64, error)
+	// GetUserPermission gets a user's permission bitmask for a service and resource
+	// resource can be empty string for global service permissions
+	GetUserPermission(userID, serviceID, resource string) (uint64, error)
 
-	// GrantPermission grants a permission bit to a user for a service
-	GrantPermission(userID, serviceID string, bit uint8) error
+	// GrantPermission grants a permission bit to a user for a service and resource
+	// resource can be empty string for global service permissions
+	GrantPermission(userID, serviceID, resource string, bit uint8) error
 
-	// RevokePermission revokes a permission bit from a user for a service
-	RevokePermission(userID, serviceID string, bit uint8) error
+	// RevokePermission revokes a permission bit from a user for a service and resource
+	// resource can be empty string for global service permissions
+	RevokePermission(userID, serviceID, resource string, bit uint8) error
 
-	// HasPermission checks if a user has a specific permission bit
-	HasPermission(userID, serviceID string, bit uint8) (bool, error)
+	// HasPermission checks if a user has a specific permission bit for a service and resource
+	// resource can be empty string for global service permissions
+	HasPermission(userID, serviceID, resource string, bit uint8) (bool, error)
 
 	// IncrementPermissionVersion increments permission version (invalidates tokens)
 	IncrementPermissionVersion(userID string) error
@@ -55,7 +59,7 @@ func NewService(repo Repository, serviceRepo ServiceRepository) ServiceInterface
 	}
 }
 
-// BuildScopes builds a map of service codes to bitmasks for a user
+// BuildScopes builds a map of service codes (with optional resource) to bitmasks for a user
 func (s *serviceImpl) BuildScopes(userID string) (map[string]uint64, error) {
 	userPerms, err := s.repo.FindUserPermissionsByUserID(userID)
 	if err != nil {
@@ -73,32 +77,49 @@ func (s *serviceImpl) BuildScopes(userID string) (map[string]uint64, error) {
 
 		// Only include if the bitmask is greater than 0
 		if userPerm.Bitmask > 0 {
-			scopes[service.Code] = userPerm.Bitmask
+			// Build scope key: "service:resource" or "service" if resource is NULL
+			scopeKey := service.Code
+			if userPerm.Resource != nil && *userPerm.Resource != "" {
+				scopeKey = fmt.Sprintf("%s:%s", service.Code, *userPerm.Resource)
+			}
+			scopes[scopeKey] = userPerm.Bitmask
 		}
 	}
 
 	return scopes, nil
 }
 
-// GetUserPermission gets a user's permission bitmask for a service
-func (s *serviceImpl) GetUserPermission(userID, serviceID string) (uint64, error) {
-	userPerm, err := s.repo.FindUserPermission(userID, serviceID)
+// GetUserPermission gets a user's permission bitmask for a service and resource
+// resource can be empty string for global service permissions
+func (s *serviceImpl) GetUserPermission(userID, serviceID, resource string) (uint64, error) {
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	userPerm, err := s.repo.FindUserPermission(userID, serviceID, resourcePtr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil // No permissions = 0 bitmask
+			return 0, nil // there are no permissions = 0 bitmask
 		}
 		return 0, err
 	}
 	return userPerm.Bitmask, nil
 }
 
-// GrantPermission grants a permission bit to a user for a service
-func (s *serviceImpl) GrantPermission(userID, serviceID string, bit uint8) error {
+// GrantPermission grants a permission bit to a user for a service and resource
+// resource can be empty string for global service permissions
+func (s *serviceImpl) GrantPermission(userID, serviceID, resource string, bit uint8) error {
 	if bit > 63 {
 		return fmt.Errorf("invalid bit position: %d (must be 0-63)", bit)
 	}
 
-	userPerm, err := s.repo.FindUserPermission(userID, serviceID)
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	userPerm, err := s.repo.FindUserPermission(userID, serviceID, resourcePtr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Create new user permission
@@ -114,6 +135,7 @@ func (s *serviceImpl) GrantPermission(userID, serviceID string, bit uint8) error
 			userPerm = &UserPermission{
 				UserID:      userIDUUID,
 				ServiceID:   serviceIDUUID,
+				Resource:    resourcePtr,
 				Bitmask:     SetBit(0, bit),
 				PermissionV: 1,
 			}
@@ -138,13 +160,19 @@ func (s *serviceImpl) GrantPermission(userID, serviceID string, bit uint8) error
 	return nil
 }
 
-// RevokePermission revokes a permission bit from a user for a service
-func (s *serviceImpl) RevokePermission(userID, serviceID string, bit uint8) error {
+// RevokePermission revokes a permission bit from a user for a service and resource
+// resource can be empty string for global service permissions
+func (s *serviceImpl) RevokePermission(userID, serviceID, resource string, bit uint8) error {
 	if bit > 63 {
 		return fmt.Errorf("invalid bit position: %d (must be 0-63)", bit)
 	}
 
-	userPerm, err := s.repo.FindUserPermission(userID, serviceID)
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	userPerm, err := s.repo.FindUserPermission(userID, serviceID, resourcePtr)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
@@ -165,9 +193,10 @@ func (s *serviceImpl) RevokePermission(userID, serviceID string, bit uint8) erro
 	return nil
 }
 
-// HasPermission checks if a user has a specific permission bit
-func (s *serviceImpl) HasPermission(userID, serviceID string, bit uint8) (bool, error) {
-	bitmask, err := s.GetUserPermission(userID, serviceID)
+// HasPermission checks if a user has a specific permission bit for a service and resource
+// resource can be empty string for global service permissions
+func (s *serviceImpl) HasPermission(userID, serviceID, resource string, bit uint8) (bool, error) {
+	bitmask, err := s.GetUserPermission(userID, serviceID, resource)
 	if err != nil {
 		return false, err
 	}

@@ -8,16 +8,18 @@ type Repository interface {
 	CreatePermission(permission *Permission) error
 	FindPermissionByID(id string) (*Permission, error)
 	FindPermissionsByServiceID(serviceID string) ([]*Permission, error)
+	FindPermissionsByServiceIDAndResource(serviceID string, resource *string) ([]*Permission, error)
 	FindActivePermissionsByServiceID(serviceID string) ([]*Permission, error)
+	FindActivePermissionsByServiceIDAndResource(serviceID string, resource *string) ([]*Permission, error)
 	UpdatePermission(permission *Permission) error
 	DeletePermission(id string) error
 
 	// User Permissions
 	CreateUserPermission(userPerm *UserPermission) error
-	FindUserPermission(userID, serviceID string) (*UserPermission, error)
+	FindUserPermission(userID, serviceID string, resource *string) (*UserPermission, error)
 	FindUserPermissionsByUserID(userID string) ([]*UserPermission, error)
 	UpdateUserPermission(userPerm *UserPermission) error
-	DeleteUserPermission(userID, serviceID string) error
+	DeleteUserPermission(userID, serviceID string, resource *string) error
 	IncrementPermissionVersion(userID string) error
 }
 
@@ -54,10 +56,44 @@ func (r *repository) FindPermissionsByServiceID(serviceID string) ([]*Permission
 	return permissions, nil
 }
 
+// FindPermissionsByServiceIDAndResource gets all permissions for a service and resource
+func (r *repository) FindPermissionsByServiceIDAndResource(serviceID string, resource *string) ([]*Permission, error) {
+	var permissions []*Permission
+	query := r.db.Where("service_id = ?", serviceID)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	if err := query.Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+	return permissions, nil
+}
+
 // FindActivePermissionsByServiceID gets all active permissions for a service
 func (r *repository) FindActivePermissionsByServiceID(serviceID string) ([]*Permission, error) {
 	var permissions []*Permission
 	if err := r.db.Where("service_id = ? AND active = ?", serviceID, true).Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+	return permissions, nil
+}
+
+// FindActivePermissionsByServiceIDAndResource gets all active permissions for a service and resource
+func (r *repository) FindActivePermissionsByServiceIDAndResource(serviceID string, resource *string) ([]*Permission, error) {
+	var permissions []*Permission
+	query := r.db.Where("service_id = ? AND active = ?", serviceID, true)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	if err := query.Find(&permissions).Error; err != nil {
 		return nil, err
 	}
 	return permissions, nil
@@ -78,10 +114,18 @@ func (r *repository) CreateUserPermission(userPerm *UserPermission) error {
 	return r.db.Create(userPerm).Error
 }
 
-// FindUserPermission gets a user's permission for a specific service
-func (r *repository) FindUserPermission(userID, serviceID string) (*UserPermission, error) {
+// FindUserPermission gets a user's permission for a specific service and resource
+func (r *repository) FindUserPermission(userID, serviceID string, resource *string) (*UserPermission, error) {
 	var userPerm UserPermission
-	if err := r.db.Where("user_id = ? AND service_id = ?", userID, serviceID).First(&userPerm).Error; err != nil {
+	query := r.db.Where("user_id = ? AND service_id = ?", userID, serviceID)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	if err := query.First(&userPerm).Error; err != nil {
 		return nil, err
 	}
 	return &userPerm, nil
@@ -102,8 +146,16 @@ func (r *repository) UpdateUserPermission(userPerm *UserPermission) error {
 }
 
 // DeleteUserPermission deletes a user permission (soft delete)
-func (r *repository) DeleteUserPermission(userID, serviceID string) error {
-	return r.db.Where("user_id = ? AND service_id = ?", userID, serviceID).Delete(&UserPermission{}).Error
+func (r *repository) DeleteUserPermission(userID, serviceID string, resource *string) error {
+	query := r.db.Where("user_id = ? AND service_id = ?", userID, serviceID)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	return query.Delete(&UserPermission{}).Error
 }
 
 // IncrementPermissionVersion increments the permission version for all user's permissions

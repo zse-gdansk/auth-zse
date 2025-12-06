@@ -11,6 +11,7 @@ import (
 type Permission struct {
 	database.BaseModel
 	ServiceID uuid.UUID `gorm:"column:service_id;type:uuid;not null"`
+	Resource  *string   `gorm:"column:resource;size:100"` // NULL = global service permission
 	Bit       uint8     `gorm:"column:bit;not null"`
 	Name      string    `gorm:"column:name;not null;size:100"`
 	Active    bool      `gorm:"column:active;default:true"`
@@ -25,6 +26,7 @@ type UserPermission struct {
 	database.BaseModel
 	UserID      uuid.UUID `gorm:"column:user_id;type:uuid;not null"`
 	ServiceID   uuid.UUID `gorm:"column:service_id;type:uuid;not null"`
+	Resource    *string   `gorm:"column:resource;size:100"`
 	Bitmask     uint64    `gorm:"column:bitmask;not null;default:0"`
 	PermissionV int       `gorm:"column:permission_v;not null;default:1"`
 }
@@ -39,6 +41,7 @@ type PermissionResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	ServiceID uuid.UUID `json:"service_id"`
+	Resource  *string   `json:"resource,omitempty"`
 	Bit       uint8     `json:"bit"`
 	Name      string    `json:"name"`
 	Active    bool      `json:"active"`
@@ -51,6 +54,7 @@ func (p *Permission) ToResponse() *PermissionResponse {
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
 		ServiceID: p.ServiceID,
+		Resource:  p.Resource,
 		Bit:       p.Bit,
 		Name:      p.Name,
 		Active:    p.Active,
