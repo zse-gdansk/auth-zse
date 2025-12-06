@@ -5,7 +5,7 @@ import (
 
 	"github.com/Anvoria/authly/internal/domain/session"
 	"github.com/Anvoria/authly/internal/domain/user"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
 // LoginResponse represents the response from a successful login
@@ -35,16 +35,27 @@ func NewService(users user.Repository, sessions session.Service, keyStore *KeySt
 }
 
 func (s *Service) GenerateAccessToken(sub, sid string, aud []string) (string, error) {
-	claims := &AccessTokenClaims{
-		Sid: sid,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   sub,
-			Audience:  aud,
-			Issuer:    s.issuer,
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
-		},
+	now := time.Now()
+	exp := now.Add(15 * time.Minute)
+
+	// Build token
+	token, err := jwt.NewBuilder().
+		Subject(sub).
+		Audience(aud).
+		Issuer(s.issuer).
+		IssuedAt(now).
+		Expiration(exp).
+		Claim("sid", sid).
+		Build()
+	if err != nil {
+		return "", err
 	}
+
+	claims := &AccessTokenClaims{
+		Sid:   sid,
+		Token: token,
+	}
+
 	return s.KeyStore.Sign(claims)
 }
 

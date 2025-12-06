@@ -13,6 +13,7 @@ import (
 
 	"github.com/Anvoria/authly/internal/config"
 	"github.com/Anvoria/authly/internal/domain/auth"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 )
 
 func main() {
@@ -187,13 +188,20 @@ func listKeys(keysPath, activeKID string) {
 		return
 	}
 
-	if len(keyStore.Keys) == 0 {
+	keySet := keyStore.JWKS()
+	if keySet.Len() == 0 {
 		fmt.Printf("No keys found in %s\n", keysPath)
 		return
 	}
 
 	fmt.Printf("Keys in %s:\n\n", keysPath)
-	for kid, key := range keyStore.Keys {
+	for i := 0; i < keySet.Len(); i++ {
+		key, ok := keySet.Key(i)
+		if !ok {
+			continue
+		}
+
+		kid, _ := key.KeyID()
 		active := ""
 		if kid == activeKID {
 			active = " (ACTIVE)"
@@ -202,11 +210,18 @@ func listKeys(keysPath, activeKID string) {
 		if len(kid) > 4 && kid[:4] == "key-" {
 			keyID = kid[4:]
 		}
-		fmt.Printf("  %s%s\n", kid, active)
-		fmt.Printf("    Key size: %d bits\n", key.PrivateKey.N.BitLen())
-		fmt.Printf("    Private:  private-%s.pem\n", keyID)
-		fmt.Printf("    Public:   public-%s.pem\n", keyID)
-		fmt.Println()
+
+		// Get key size from raw key
+		var rawKey interface{}
+		if err := jwk.Export(key, &rawKey); err == nil {
+			if rsaKey, ok := rawKey.(*rsa.PublicKey); ok {
+				fmt.Printf("  %s%s\n", kid, active)
+				fmt.Printf("    Key size: %d bits\n", rsaKey.N.BitLen())
+				fmt.Printf("    Private:  private-%s.pem\n", keyID)
+				fmt.Printf("    Public:   public-%s.pem\n", keyID)
+				fmt.Println()
+			}
+		}
 	}
 
 	fmt.Printf("Active KID: %s\n", activeKID)
@@ -220,10 +235,12 @@ func setActiveKey(cfg *config.Config, kid string) {
 	}
 
 	keyID := fmt.Sprintf("key-%s", kid)
-	if _, exists := keyStore.Keys[keyID]; !exists {
+	key, ok := keyStore.KeySet.LookupKeyID(keyID)
+	if !ok {
 		fmt.Fprintf(os.Stderr, "Error: key with ID %s not found\n", kid)
 		os.Exit(1)
 	}
+	_ = key
 
 	envConfig := config.LoadEnv()
 	configPath := envConfig.ConfigPath

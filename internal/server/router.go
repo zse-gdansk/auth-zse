@@ -28,12 +28,13 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 		return fmt.Errorf("failed to load keys: %w", err)
 	}
 
-	activeKey := keyStore.GetActiveKey()
-	if activeKey == nil {
-		return fmt.Errorf("active key with KID %s not found in key store", cfg.Auth.ActiveKID)
+	activeKey, err := keyStore.GetActiveKey()
+	if err != nil {
+		return fmt.Errorf("active key with KID %s not found in key store: %w", cfg.Auth.ActiveKID, err)
 	}
 
-	slog.Info("Active key loaded", "key", cfg.Auth.ActiveKID)
+	keyID, _ := activeKey.KeyID()
+	slog.Info("Active key loaded", "key", cfg.Auth.ActiveKID, "key_id", keyID)
 
 	// Initialize auth service
 	authService := auth.NewService(userRepo, sessionService, keyStore, cfg.App.Name)

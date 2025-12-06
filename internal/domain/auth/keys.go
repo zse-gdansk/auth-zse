@@ -8,17 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-)
 
-type SigningKey struct {
-	kid        string
-	PrivateKey *rsa.PrivateKey
-	PublicKey  *rsa.PublicKey
-}
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+)
 
 type KeyStore struct {
 	ActiveKid string
-	Keys      map[string]*SigningKey
+	KeySet    jwk.Set
 }
 
 func LoadKeys(path, activeKid string) (*KeyStore, error) {
@@ -30,10 +27,7 @@ func LoadKeys(path, activeKid string) (*KeyStore, error) {
 		return nil, &ErrKeysPathNotDirectory{Path: path}
 	}
 
-	ks := &KeyStore{
-		ActiveKid: activeKid,
-		Keys:      make(map[string]*SigningKey),
-	}
+	keySet := jwk.NewSet()
 
 	files, err := os.ReadDir(path)
 	if err != nil {
@@ -98,26 +92,56 @@ func LoadKeys(path, activeKid string) (*KeyStore, error) {
 			return nil, &ErrFailedToParsePublicKey{FileName: pubFileName, Err: err}
 		}
 
-		rsaPub, ok := pub.(*rsa.PublicKey)
+		_, ok := pub.(*rsa.PublicKey)
 		if !ok {
 			return nil, &ErrPublicKeyNotRSA{FileName: pubFileName}
 		}
 
-		keyID := fmt.Sprintf("key-%s", kid)
-		ks.Keys[keyID] = &SigningKey{
-			kid:        keyID,
-			PrivateKey: priv,
-			PublicKey:  rsaPub,
+		jwkKey, err := jwk.Import(priv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert private key to JWK: %w", err)
 		}
+
+		keyID := fmt.Sprintf("key-%s", kid)
+		if err := jwkKey.Set(jwk.KeyIDKey, keyID); err != nil {
+			return nil, fmt.Errorf("failed to set key ID: %w", err)
+		}
+
+		if err := jwkKey.Set(jwk.AlgorithmKey, jwa.RS256()); err != nil {
+			return nil, fmt.Errorf("failed to set algorithm: %w", err)
+		}
+
+		if err := keySet.AddKey(jwkKey); err != nil {
+			return nil, fmt.Errorf("failed to add key to set: %w", err)
+		}
+	}
+
+	ks := &KeyStore{
+		ActiveKid: activeKid,
+		KeySet:    keySet,
 	}
 
 	return ks, nil
 }
 
-func (ks *KeyStore) GetActiveKey() *SigningKey {
+func (ks *KeyStore) GetActiveKey() (jwk.Key, error) {
 	activeKid := ks.ActiveKid
 	if !strings.HasPrefix(activeKid, "key-") {
 		activeKid = fmt.Sprintf("key-%s", activeKid)
 	}
-	return ks.Keys[activeKid]
+
+	key, ok := ks.KeySet.LookupKeyID(activeKid)
+	if !ok {
+		return nil, ErrUnknownKey
+	}
+
+	return key, nil
+}
+
+func (ks *KeyStore) JWKS() jwk.Set {
+	publicSet, err := jwk.PublicSetOf(ks.KeySet)
+	if err != nil {
+		return jwk.NewSet()
+	}
+	return publicSet
 }
