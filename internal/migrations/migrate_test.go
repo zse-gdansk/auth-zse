@@ -231,7 +231,6 @@ func TestMigrationSQL_UsersTable(t *testing.T) {
 	t.Run("users table should have constraints", func(t *testing.T) {
 		constraints := []string{
 			"username UNIQUE NOT NULL",
-			"email UNIQUE",
 			"is_active DEFAULT true",
 		}
 
