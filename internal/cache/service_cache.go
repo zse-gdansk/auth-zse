@@ -42,6 +42,10 @@ type cachedServiceInfo struct {
 func (c *ServiceCache) GetByDomain(ctx context.Context, domain string) (*service.Service, error) {
 	cacheKey := ServiceCachePrefix + domain
 
+	if RedisClient == nil {
+		return nil, fmt.Errorf("redis client not initialized")
+	}
+
 	// Try to get from Redis cache
 	cached, err := RedisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
@@ -81,6 +85,11 @@ func (c *ServiceCache) GetByDomain(ctx context.Context, domain string) (*service
 // InvalidateByDomain removes a service from Redis cache by domain
 func (c *ServiceCache) InvalidateByDomain(ctx context.Context, domain string) error {
 	cacheKey := ServiceCachePrefix + domain
+
+	if RedisClient == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+
 	err := RedisClient.Del(ctx, cacheKey).Err()
 	if err == nil {
 		slog.Debug("Service cache invalidated in Redis", "domain", domain, "key", cacheKey)
@@ -91,6 +100,11 @@ func (c *ServiceCache) InvalidateByDomain(ctx context.Context, domain string) er
 // InvalidateAll removes all service cache entries
 func (c *ServiceCache) InvalidateAll(ctx context.Context) error {
 	pattern := ServiceCachePrefix + "*"
+
+	if RedisClient == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+
 	keys, err := RedisClient.Keys(ctx, pattern).Result()
 	if err != nil {
 		return fmt.Errorf("failed to get cache keys: %w", err)
