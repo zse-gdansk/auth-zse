@@ -58,8 +58,10 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	keyID, _ := activeKey.KeyID()
 	slog.Info("Active key loaded", "key", cfg.Auth.ActiveKID, "key_id", keyID)
 
+	issuer := cfg.Server.Domain
+
 	// Initialize auth service
-	authService := auth.NewService(userRepo, sessionService, permissionService, keyStore, cfg.App.Name, tokenRevocationCache)
+	authService := auth.NewService(userRepo, sessionService, permissionService, keyStore, issuer, tokenRevocationCache)
 	authHandler := auth.NewHandler(authService, userService)
 
 	// Setup auth routes
@@ -69,10 +71,10 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 
 	protectedGroup := api.Group("")
 	authServiceRepoAdapter := auth.NewServiceRepositoryAdapter(serviceCache)
-	protectedGroup.Use(auth.AuthMiddleware(keyStore, authService, cfg.App.Name, authServiceRepoAdapter))
+	protectedGroup.Use(auth.AuthMiddleware(keyStore, authService, issuer, authServiceRepoAdapter))
 	protectedGroup.Get("/user/info", authHandler.GetUserInfo)
 
 	app.Get("/.well-known/jwks.json", auth.JWKSHandler(keyStore))
-	app.Get("/.well-known/openid-configuration", oicd.OpenIDConfigurationHandler())
+	app.Get("/.well-known/openid-configuration", oicd.OpenIDConfigurationHandler(issuer))
 	return nil
 }

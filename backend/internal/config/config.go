@@ -27,8 +27,9 @@ type AppConfig struct {
 
 // ServerConfig holds server-specific configuration
 type ServerConfig struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+	Host   string `yaml:"host"`
+	Port   int    `yaml:"port"`
+	Domain string `yaml:"domain"`
 }
 
 // AuthConfig holds auth-specific configuration
