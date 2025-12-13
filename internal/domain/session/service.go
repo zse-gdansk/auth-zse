@@ -164,7 +164,8 @@ func (s *service) Revoke(id uuid.UUID) error {
 
 	// Store revocation in Redis cache if available
 	if s.revocationCache != nil {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		// Calculate TTL: time until session expires (or minimum 1 hour if already expired)
 		ttl := time.Until(sess.ExpiresAt)
 		if ttl <= 0 {
