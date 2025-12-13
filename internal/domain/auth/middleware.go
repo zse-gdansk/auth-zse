@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 	"time"
@@ -19,8 +20,8 @@ const (
 
 // ServiceRepository defines the interface needed to find services by domain or code
 type ServiceRepository interface {
-	FindByDomain(domain string) (ServiceInfo, error)
-	FindByCode(code string) (ServiceInfo, error)
+	FindByDomain(ctx context.Context, domain string) (ServiceInfo, error)
+	FindByCode(ctx context.Context, code string) (ServiceInfo, error)
 }
 
 // ServiceInfo provides information about a service needed for AUD verification
@@ -83,9 +84,10 @@ func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceR
 		}
 
 		if serviceRepo != nil {
+			ctx := c.UserContext()
 			validAudience := false
 			for _, serviceCode := range aud {
-				service, err := serviceRepo.FindByCode(serviceCode)
+				service, err := serviceRepo.FindByCode(ctx, serviceCode)
 				if err != nil {
 					slog.Debug("service not found for audience code", "code", serviceCode, "error", err)
 					continue
