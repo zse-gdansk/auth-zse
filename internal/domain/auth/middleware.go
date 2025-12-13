@@ -79,6 +79,11 @@ func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceR
 			return utils.ErrorResponse(c, ErrTokenExpiredOrInvalid.Error(), fiber.StatusUnauthorized)
 		}
 
+		aud := claims.Audience()
+		if len(aud) == 0 {
+			return utils.ErrorResponse(c, ErrTokenValidationError.Error(), fiber.StatusUnauthorized)
+		}
+
 		// Extract origin and verify AUD based on service domain
 		if serviceRepo != nil {
 			origin := extractOrigin(c)
@@ -103,7 +108,6 @@ func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceR
 				return utils.ErrorResponse(c, ErrServiceNotFoundForDomain.Error(), fiber.StatusUnauthorized)
 			}
 
-			aud := claims.Audience()
 			if !slices.Contains(aud, service.GetCode()) {
 				slog.Error("token audience mismatch", "expected", service.GetCode(), "got", aud)
 				return utils.ErrorResponse(c, ErrTokenExpiredOrInvalid.Error(), fiber.StatusUnauthorized)
