@@ -2,8 +2,6 @@ package auth
 
 import (
 	"log/slog"
-	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -19,9 +17,10 @@ const (
 	ScopesKey = "scopes"
 )
 
-// ServiceRepository defines the interface needed to find services by domain
+// ServiceRepository defines the interface needed to find services by domain or code
 type ServiceRepository interface {
 	FindByDomain(domain string) (ServiceInfo, error)
+	FindByCode(code string) (ServiceInfo, error)
 }
 
 // ServiceInfo provides information about a service needed for AUD verification
@@ -30,18 +29,17 @@ type ServiceInfo interface {
 	IsActive() bool
 }
 
-// AuthMiddleware returns a Fiber middleware that validates an incoming Bearer access token.
-// It checks issuer, extracts origin from request headers, finds the service by domain,
 // AuthMiddleware returns a Fiber middleware that authenticates requests using a bearer token
 // from the Authorization header, enforces issuer/expiration/audience rules, checks revocation,
 // and attaches the resolved Identity and scopes to the request context.
 //
 // If a non-empty issuer is provided the middleware validates the token issuer matches it.
-// When a ServiceRepository is supplied the middleware derives the caller domain from the
-// Origin or Referer header, ensures a matching active service exists, and verifies the token's
-// audience contains that service's code. On successful validation the middleware stores the
-// Identity under IdentityKey and the scopes map under ScopesKey in the Fiber context before
-// calling the next handler.
+// When a ServiceRepository is supplied the middleware validates that each service code in the
+// token's audience claim corresponds to a valid, active service. This validation is based
+// solely on the cryptographically signed token claims and does not rely on client-controlled
+// headers like Origin or Referer, which can be spoofed. On successful validation the middleware
+// stores the Identity under IdentityKey and the scopes map under ScopesKey in the Fiber context
+// before calling the next handler.
 func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceRepo ServiceRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -84,32 +82,26 @@ func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceR
 			return utils.ErrorResponse(c, ErrTokenValidationError.Error(), fiber.StatusUnauthorized)
 		}
 
-		// Extract origin and verify AUD based on service domain
 		if serviceRepo != nil {
-			origin := extractOrigin(c)
-			if origin == "" {
-				return c.Next() // skip aud verification
+			validAudience := false
+			for _, serviceCode := range aud {
+				service, err := serviceRepo.FindByCode(serviceCode)
+				if err != nil {
+					slog.Debug("service not found for audience code", "code", serviceCode, "error", err)
+					continue
+				}
+
+				if !service.IsActive() {
+					slog.Debug("service is not active", "code", serviceCode)
+					continue
+				}
+
+				validAudience = true
+				break
 			}
 
-			domain, err := extractDomainFromOrigin(origin)
-			if err != nil {
-				slog.Error("failed to extract domain from origin", "origin", origin, "error", err)
-				return utils.ErrorResponse(c, ErrInvalidOrigin.Error(), fiber.StatusUnauthorized)
-			}
-
-			service, err := serviceRepo.FindByDomain(domain)
-			if err != nil {
-				slog.Error("service not found for domain", "domain", domain, "error", err)
-				return utils.ErrorResponse(c, ErrServiceNotFoundForDomain.Error(), fiber.StatusUnauthorized)
-			}
-
-			if !service.IsActive() {
-				slog.Error("service is not active", "domain", domain)
-				return utils.ErrorResponse(c, ErrServiceNotFoundForDomain.Error(), fiber.StatusUnauthorized)
-			}
-
-			if !slices.Contains(aud, service.GetCode()) {
-				slog.Error("token audience mismatch", "expected", service.GetCode(), "got", aud)
+			if !validAudience {
+				slog.Error("token audience does not contain any valid active service", "audience", aud)
 				return utils.ErrorResponse(c, ErrTokenExpiredOrInvalid.Error(), fiber.StatusUnauthorized)
 			}
 		}
@@ -136,40 +128,6 @@ func AuthMiddleware(keyStore *KeyStore, svc AuthService, issuer string, serviceR
 
 		return c.Next()
 	}
-}
-
-// extractOrigin extracts the origin from the request headers
-// extractOrigin returns the request origin by checking the "Origin" header and, if absent, the "Referer" header.
-func extractOrigin(c *fiber.Ctx) string {
-	origin := c.Get("Origin")
-	if origin != "" {
-		return origin
-	}
-
-	referer := c.Get("Referer")
-	if referer != "" {
-		return referer
-	}
-
-	return ""
-}
-
-// extractDomainFromOrigin extracts the host domain (without port) from an origin URL string.
-// It trims a trailing slash before parsing and returns an error if the origin is not a valid URL.
-func extractDomainFromOrigin(origin string) (string, error) {
-	origin = strings.TrimSuffix(origin, "/")
-
-	parsedURL, err := url.Parse(origin)
-	if err != nil {
-		return "", err
-	}
-
-	domain := parsedURL.Host
-	if idx := strings.Index(domain, ":"); idx != -1 {
-		domain = domain[:idx]
-	}
-
-	return domain, nil
 }
 
 // RequireScope returns a middleware that requires the specified scope to be present and have a non-zero bitmask in the request's scopes stored under ScopesKey.

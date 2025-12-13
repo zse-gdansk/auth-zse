@@ -40,3 +40,12 @@ func (a *serviceRepositoryAdapter) FindByDomain(domain string) (ServiceInfo, err
 	}
 	return &serviceInfoAdapter{service: service}, nil
 }
+
+func (a *serviceRepositoryAdapter) FindByCode(code string) (ServiceInfo, error) {
+	ctx := context.Background()
+	service, err := a.cache.GetByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	return &serviceInfoAdapter{service: service}, nil
+}
