@@ -36,3 +36,5 @@ bin/
 
 # keys
 /keys/
+
+.DS_Store
