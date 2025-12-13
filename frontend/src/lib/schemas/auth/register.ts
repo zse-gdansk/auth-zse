@@ -19,12 +19,30 @@ export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 /**
  * Schema for user registration response
  */
-export const registerResponseSchema = z.object({
-    success: z.boolean(),
-    user_id: z.string().optional(),
-    error: z.string().optional(),
-    error_description: z.string().optional(),
+export const registerSuccessResponseSchema = z.object({
+    success: z.literal(true),
+    data: z.object({
+        user: z
+            .object({
+                id: z.string(),
+            })
+            .loose(),
+    }),
+    message: z.string(),
 });
+
+/**
+ * Schema for user registration response error
+ */
+export const registerErrorResponseSchema = z.object({
+    success: z.literal(false),
+    error: z.string(),
+});
+
+/**
+ * Schema for user registration response
+ */
+export const registerResponseSchema = z.union([registerSuccessResponseSchema, registerErrorResponseSchema]);
 
 /**
  * Type inferred from registerResponseSchema

@@ -26,6 +26,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         htmlFor={inputId}
                     >
                         {label}
+                        {props.required && <span className="text-red-500 ml-1">*</span>}
                     </label>
                 )}
 
@@ -43,7 +44,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         ref={ref}
                         className={cn(
                             "flex h-11 w-full border border-white/10 bg-white/5 px-4 text-sm text-white transition-[border-color,background-color] duration-200",
-                            "rounded-none outline-none focus:outline-none", // Explicitly remove outline and rounding
+                            "rounded-none outline-none focus:outline-none",
                             "placeholder:text-white/30 hover:border-white/20",
                             "focus-visible:border-white/50 focus-visible:bg-white/10",
                             "disabled:cursor-not-allowed disabled:opacity-50",

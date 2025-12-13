@@ -1,6 +1,20 @@
 import { z } from "zod";
 
 /**
+ * Schema for API error response
+ */
+export const apiErrorSchema = z.object({
+    error: z.string(),
+    error_description: z.string().optional(),
+    error_uri: z.string().optional(),
+});
+
+/**
+ * Type inferred from apiErrorSchema
+ */
+export type ApiError = z.infer<typeof apiErrorSchema>;
+
+/**
  * Schema for user login request
  */
 export const loginRequestSchema = z
@@ -26,12 +40,28 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 /**
  * Schema for user login response
  */
-export const loginResponseSchema = z.object({
-    success: z.boolean(),
-    user_id: z.string().optional(),
-    error: z.string().optional(),
-    error_description: z.string().optional(),
+export const loginSuccessResponseSchema = z.object({
+    success: z.literal(true),
+    data: z
+        .object({
+            user_id: z.string().optional(),
+        })
+        .loose(),
+    message: z.string().optional(),
 });
+
+/**
+ * Schema for user login response error
+ */
+export const loginErrorResponseSchema = z.object({
+    success: z.literal(false),
+    error: z.string(),
+});
+
+/**
+ * Schema for user login response
+ */
+export const loginResponseSchema = z.union([loginSuccessResponseSchema, loginErrorResponseSchema]);
 
 /**
  * Type inferred from loginResponseSchema
