@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"strings"
+
 	"github.com/Anvoria/authly/internal/domain/auth"
 	"github.com/Anvoria/authly/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -108,4 +110,74 @@ func (h *Handler) Authorize(c *fiber.Ctx) error {
 	}
 
 	return c.Redirect(redirectURL, fiber.StatusFound)
+}
+
+// Token handles the OAuth2 token request (authorization code exchange)
+func (h *Handler) Token(c *fiber.Ctx) error {
+	var req TokenRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.OIDCErrorResponse(c, "invalid_request", err.Error())
+	}
+
+	// Validate required fields
+	if req.GrantType == "" {
+		return utils.OIDCErrorResponse(c, "invalid_request", "grant_type is required")
+	}
+	if req.Code == "" {
+		return utils.OIDCErrorResponse(c, "invalid_request", "code is required")
+	}
+	if req.RedirectURI == "" {
+		return utils.OIDCErrorResponse(c, "invalid_request", "redirect_uri is required")
+	}
+	if req.ClientID == "" {
+		return utils.OIDCErrorResponse(c, "invalid_request", "client_id is required")
+	}
+
+	// Get session from cookie
+	sessionCookie := c.Cookies("session")
+	if sessionCookie == "" {
+		return utils.OIDCErrorResponse(c, "invalid_grant", "Session cookie is required", fiber.StatusUnauthorized)
+	}
+
+	// Parse session cookie: format is "sessionID:secret"
+	parts := strings.SplitN(sessionCookie, ":", 2)
+	if len(parts) != 2 {
+		return utils.OIDCErrorResponse(c, "invalid_grant", "Invalid session cookie format", fiber.StatusUnauthorized)
+	}
+
+	sessionIDStr := parts[0]
+	refreshSecret := parts[1]
+
+	if sessionIDStr == "" || refreshSecret == "" {
+		return utils.OIDCErrorResponse(c, "invalid_grant", "Invalid session cookie", fiber.StatusUnauthorized)
+	}
+
+	// Parse session ID as UUID
+	sessionID, err := uuid.Parse(sessionIDStr)
+	if err != nil {
+		return utils.OIDCErrorResponse(c, "invalid_grant", "Invalid session ID format", fiber.StatusUnauthorized)
+	}
+
+	// Call service with existing session
+	res, err := h.service.ExchangeCode(&req, sessionID, refreshSecret)
+	if err != nil {
+		switch err {
+		case ErrInvalidGrant:
+			return utils.OIDCErrorResponse(c, "invalid_grant", err.Error())
+		case ErrInvalidCode:
+			return utils.OIDCErrorResponse(c, "invalid_grant", "The provided authorization code is invalid, expired, or already used", fiber.StatusBadRequest)
+		case ErrInvalidClientID:
+			return utils.OIDCErrorResponse(c, "invalid_client", "Invalid client_id")
+		case ErrInvalidRedirectURI:
+			return utils.OIDCErrorResponse(c, "invalid_grant", "redirect_uri mismatch")
+		case ErrInvalidCodeVerifier:
+			return utils.OIDCErrorResponse(c, "invalid_grant", "code_verifier is invalid")
+		case ErrInvalidClientSecret:
+			return utils.OIDCErrorResponse(c, "invalid_client", "Invalid client_secret")
+		default:
+			return utils.OIDCErrorResponse(c, "server_error", err.Error(), fiber.StatusInternalServerError)
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(res)
 }

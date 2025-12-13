@@ -30,3 +30,16 @@ func ErrorResponse(c *fiber.Ctx, message string, code ...int) error {
 		"error":   message,
 	})
 }
+
+// OIDCErrorResponse sends an error JSON response for OIDC errors
+func OIDCErrorResponse(c *fiber.Ctx, message, errorDescription string, code ...int) error {
+	statusCode := fiber.StatusBadRequest
+	if len(code) > 0 {
+		statusCode = code[0]
+	}
+
+	return c.Status(statusCode).JSON(fiber.Map{
+		"error":             message,
+		"error_description": errorDescription,
+	})
+}

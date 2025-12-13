@@ -2,13 +2,19 @@ package oidc
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/Anvoria/authly/internal/domain/auth"
+	"github.com/Anvoria/authly/internal/domain/permission"
 	svc "github.com/Anvoria/authly/internal/domain/service"
+	"github.com/Anvoria/authly/internal/domain/session"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -16,21 +22,28 @@ import (
 // ServiceInterface defines the interface for OIDC operations
 type ServiceInterface interface {
 	Authorize(req *AuthorizeRequest, userID uuid.UUID) (*AuthorizeResponse, error)
+	ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSecret string) (*TokenResponse, error)
 }
 
 // Service handles OIDC operations
 type Service struct {
-	serviceRepo  svc.Repository
-	codeRepo     Repository
-	codeLifetime time.Duration
+	serviceRepo       svc.Repository
+	codeRepo          Repository
+	codeLifetime      time.Duration
+	authService       *auth.Service
+	sessionService    session.Service
+	permissionService permission.ServiceInterface
 }
 
 // NewService creates a new OIDC service
-func NewService(serviceRepo svc.Repository, codeRepo Repository) ServiceInterface {
+func NewService(serviceRepo svc.Repository, codeRepo Repository, authService *auth.Service, sessionService session.Service, permissionService permission.ServiceInterface) ServiceInterface {
 	return &Service{
-		serviceRepo:  serviceRepo,
-		codeRepo:     codeRepo,
-		codeLifetime: 10 * time.Minute,
+		serviceRepo:       serviceRepo,
+		codeRepo:          codeRepo,
+		codeLifetime:      10 * time.Minute,
+		authService:       authService,
+		sessionService:    sessionService,
+		permissionService: permissionService,
 	}
 }
 
@@ -104,12 +117,7 @@ func (s *Service) Authorize(req *AuthorizeRequest, userID uuid.UUID) (*Authorize
 
 // isValidRedirectURI checks if the redirect_uri is allowed for the service
 func (s *Service) isValidRedirectURI(allowedURIs []string, redirectURI string) bool {
-	for _, allowed := range allowedURIs {
-		if allowed == redirectURI {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowedURIs, redirectURI)
 }
 
 // isValidScopes checks if all requested scopes are allowed
@@ -160,4 +168,162 @@ func (s *Service) generateAuthorizationCode() (string, error) {
 	}
 	// Encode to base64url (URL-safe base64)
 	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+// ExchangeCode exchanges an authorization code for access and refresh tokens
+// sessionID and refreshSecret should come from the existing session cookie
+func (s *Service) ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSecret string) (*TokenResponse, error) {
+	// Validate grant_type
+	if req.GrantType != "authorization_code" {
+		return nil, ErrInvalidGrant
+	}
+
+	// Find and validate authorization code
+	authCode, err := s.codeRepo.FindByCode(req.Code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidCode
+		}
+		return nil, fmt.Errorf("failed to find authorization code: %w", err)
+	}
+
+	// Check if code is already used
+	if authCode.Used {
+		return nil, ErrInvalidCode
+	}
+
+	// Check if code is expired
+	if time.Now().After(authCode.ExpiresAt) {
+		return nil, ErrInvalidCode
+	}
+
+	// Find service by client_id
+	service, err := s.serviceRepo.FindByClientID(req.ClientID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidClientID
+		}
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Validate client_id matches
+	if authCode.ClientID != req.ClientID {
+		return nil, ErrInvalidClientID
+	}
+
+	// Validate redirect_uri matches
+	if authCode.RedirectURI != req.RedirectURI {
+		return nil, ErrInvalidRedirectURI
+	}
+
+	// Validate client_secret if provided (for confidential clients)
+	if req.ClientSecret != "" {
+		if service.ClientSecret != req.ClientSecret {
+			return nil, ErrInvalidClientSecret
+		}
+	}
+
+	if slices.Contains(strings.Fields(authCode.Scopes), "openid") {
+		// TODO: Generate ID token if openid scope is present
+		slog.Error("OpenID scope is not supported yet")
+	}
+
+	// Validate PKCE if code_challenge was provided
+	if authCode.CodeChallenge != "" {
+		if req.CodeVerifier == "" {
+			return nil, ErrInvalidCodeVerifier
+		}
+
+		// Verify code_verifier against code_challenge
+		if err := s.verifyCodeVerifier(req.CodeVerifier, authCode.CodeChallenge, authCode.ChallengeMeth); err != nil {
+			return nil, err
+		}
+	}
+
+	sess, err := s.sessionService.Validate(sessionID, refreshSecret)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session: %w", err)
+	}
+
+	userIDFromSession, err := uuid.Parse(sess.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session user ID: %w", err)
+	}
+
+	if userIDFromSession != authCode.UserID {
+		return nil, fmt.Errorf("session user mismatch: session belongs to different user")
+	}
+
+	// Mark code as used
+	if err := s.codeRepo.MarkAsUsed(req.Code); err != nil {
+		return nil, fmt.Errorf("failed to mark code as used: %w", err)
+	}
+
+	// Build scopes from authorization code
+	scopeList := strings.Fields(authCode.Scopes)
+	scopes, err := s.buildScopesForClient(authCode.UserID.String(), req.ClientID, scopeList)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build scopes: %w", err)
+	}
+
+	pver, err := s.permissionService.GetPermissionVersion(authCode.UserID.String())
+	if err != nil {
+		pver = 1
+	}
+
+	accessToken, err := s.authService.GenerateAccessToken(authCode.UserID.String(), sessionID.String(), scopes, pver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes in seconds
+		RefreshToken: refreshSecret,
+		Scope:        authCode.Scopes,
+	}, nil
+}
+
+// buildScopesForClient builds scopes map for a specific client from requested scopes
+func (s *Service) buildScopesForClient(userID, clientID string, requestedScopes []string) (map[string]uint64, error) {
+	allScopes, err := s.permissionService.BuildScopes(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	clientScopes := make(map[string]uint64)
+	requestedSet := make(map[string]bool)
+	for _, scope := range requestedScopes {
+		requestedSet[scope] = true
+	}
+
+	for scopeKey, bitmask := range allScopes {
+		if scopeKey == clientID || strings.HasPrefix(scopeKey, clientID+":") {
+			if requestedSet[scopeKey] || scopeKey == clientID {
+				clientScopes[scopeKey] = bitmask
+			}
+		}
+	}
+
+	return clientScopes, nil
+}
+
+// verifyCodeVerifier verifies code_verifier against code_challenge using the specified method
+func (s *Service) verifyCodeVerifier(codeVerifier, codeChallenge, method string) error {
+	if method != "S256" {
+		return ErrInvalidCodeChallengeMethod
+	}
+
+	// Compute SHA256 hash of code_verifier
+	hash := sha256.Sum256([]byte(codeVerifier))
+	// Encode to base64url
+	computedChallenge := base64.RawURLEncoding.EncodeToString(hash[:])
+
+	// Compare with stored code_challenge
+	if computedChallenge != codeChallenge {
+		return ErrInvalidCodeVerifier
+	}
+
+	return nil
 }

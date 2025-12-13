@@ -24,6 +24,26 @@ type AuthorizeResponse struct {
 	State string `json:"state,omitempty"`
 }
 
+// TokenRequest represents the OAuth2 token request
+type TokenRequest struct {
+	GrantType    string `form:"grant_type" validate:"required,oneof=authorization_code"`
+	Code         string `form:"code" validate:"required"`
+	RedirectURI  string `form:"redirect_uri" validate:"required"`
+	ClientID     string `form:"client_id" validate:"required"`
+	ClientSecret string `form:"client_secret"`
+	CodeVerifier string `form:"code_verifier"`
+}
+
+// TokenResponse represents the OAuth2 token response
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	Scope        string `json:"scope,omitempty"`
+	IDToken      string `json:"id_token,omitempty"`
+}
+
 // AuthorizationCode represents an OAuth2 authorization code
 type AuthorizationCode struct {
 	database.BaseModel

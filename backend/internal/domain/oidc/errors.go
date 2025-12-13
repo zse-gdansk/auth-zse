@@ -26,4 +26,16 @@ var (
 
 	// ErrUnauthorizedClient is returned when client is not authorized
 	ErrUnauthorizedClient = errors.New("unauthorized_client")
+
+	// ErrInvalidGrant is returned when grant_type is invalid or authorization code is invalid
+	ErrInvalidGrant = errors.New("invalid_grant")
+
+	// ErrInvalidCode is returned when authorization code is invalid, expired, or already used
+	ErrInvalidCode = errors.New("invalid_code")
+
+	// ErrInvalidCodeVerifier is returned when code_verifier doesn't match code_challenge
+	ErrInvalidCodeVerifier = errors.New("invalid_code_verifier")
+
+	// ErrInvalidClientSecret is returned when client_secret is invalid
+	ErrInvalidClientSecret = errors.New("invalid_client_secret")
 )
