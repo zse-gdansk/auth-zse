@@ -9,6 +9,8 @@ var (
 	ErrUsernameExists = errors.New("username already exists")
 	// ErrUsernameRequired is returned when trying to register with an empty username
 	ErrUsernameRequired = errors.New("username is required")
+	// ErrPasswordRequired is returned when trying to register with an empty password
+	ErrPasswordRequired = errors.New("password is required")
 )
 
 // Service interface for user operations

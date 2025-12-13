@@ -61,7 +61,7 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 
 	res, err := h.authService.Register(req)
 	if err != nil {
-		return utils.ErrorResponse(c, err.Error(), fiber.StatusInternalServerError)
+		return utils.ErrorResponse(c, err.Error(), fiber.StatusBadRequest)
 	}
 
 	return utils.SuccessResponse(c, fiber.Map{
