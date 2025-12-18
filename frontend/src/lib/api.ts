@@ -199,7 +199,10 @@ export async function validateAuthorizationRequest(
  *
  * @returns `{ authenticated: true, user_id: string }` when authenticated; `{ authenticated: false }` otherwise.
  */
-export async function checkAuthStatus(): Promise<{ authenticated: boolean; user_id?: string }> {
+export async function checkAuthStatus(): Promise<{
+    authenticated: boolean;
+    user_id?: string;
+}> {
     try {
         const response = await getMe();
         if (response.success) {
