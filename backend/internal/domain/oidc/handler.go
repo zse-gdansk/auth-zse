@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -104,7 +105,8 @@ func (h *Handler) Authorize(c *fiber.Ctx) error {
 		case ErrUnauthorizedClient:
 			return utils.ErrorResponse(c, "unauthorized_client", fiber.StatusBadRequest)
 		default:
-			return utils.ErrorResponse(c, "server_error: "+err.Error(), fiber.StatusInternalServerError)
+			slog.Error("Authorize endpoint error", "error", err)
+			return utils.ErrorResponse(c, "server_error", fiber.StatusInternalServerError)
 		}
 	}
 
@@ -187,7 +189,8 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 		case ErrInvalidClientSecret:
 			return utils.OIDCErrorResponse(c, "invalid_client", "Invalid client_secret")
 		default:
-			return utils.OIDCErrorResponse(c, "server_error", err.Error(), fiber.StatusInternalServerError)
+			slog.Error("Token endpoint error", "error", err)
+			return utils.OIDCErrorResponse(c, "server_error", "internal_server_error", fiber.StatusInternalServerError)
 		}
 	}
 
@@ -214,7 +217,8 @@ func (h *Handler) UserInfo(c *fiber.Ctx) error {
 
 	userInfo, err := h.service.GetUserInfo(identity.UserID, scopes)
 	if err != nil {
-		return utils.OIDCErrorResponse(c, "server_error", err.Error(), fiber.StatusInternalServerError)
+		slog.Error("UserInfo endpoint error", "error", err)
+		return utils.OIDCErrorResponse(c, "server_error", "internal_server_error", fiber.StatusInternalServerError)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(userInfo)
@@ -339,8 +343,9 @@ func (h *Handler) ConfirmAuthorization(c *fiber.Ctx) error {
 			errorCode = "unauthorized_client"
 			errorDesc = "Client is not authorized"
 		default:
+			slog.Error("ConfirmAuthorization endpoint error", "error", err)
 			errorCode = "server_error"
-			errorDesc = err.Error()
+			errorDesc = "internal_server_error"
 		}
 		return c.Status(fiber.StatusOK).JSON(&ConfirmAuthorizationResponse{
 			Success:          false,
