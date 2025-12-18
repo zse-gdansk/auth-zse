@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
-import { register, getMe, type ApiError } from "@/authly/lib/api";
+import { register, getMe, isApiError } from "@/authly/lib/api";
 import { registerFormSchema, registerRequestSchema, type RegisterFormData } from "@/authly/lib/schemas/auth/register";
 import { redirectToAuthorize } from "@/authly/lib/oidc";
 
@@ -90,8 +90,15 @@ function RegisterPageContent() {
                 setApiError(response.error || "Registration failed");
             }
         } catch (err) {
-            const apiError = err as ApiError;
-            setApiError(apiError.error_description || apiError.error || "An error occurred");
+            let errorMessage = "An error occurred";
+            if (isApiError(err)) {
+                errorMessage = err.error_description || err.error;
+            } else if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === "string") {
+                errorMessage = err;
+            }
+            setApiError(errorMessage);
         } finally {
             setIsLoading(false);
         }

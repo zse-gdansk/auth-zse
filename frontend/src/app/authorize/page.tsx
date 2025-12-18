@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import ConsentScreen from "@/authly/components/authorize/ConsentScreen";
 import { validateAuthorizationParams, buildErrorRedirect } from "@/authly/lib/oidc";
-import { validateAuthorizationRequest, checkAuthStatus, confirmAuthorization, type ApiError } from "@/authly/lib/api";
+import { validateAuthorizationRequest, checkAuthStatus, confirmAuthorization, isApiError } from "@/authly/lib/api";
 
 type AuthStep = "validating" | "consent" | "error";
 
@@ -154,10 +154,15 @@ function AuthorizePageContent() {
                 router.push(`/login?oidc_params=${encodedParams}`);
             }
         } catch (err) {
-            const apiError = err as ApiError;
+            let errorMessage = "An unexpected error occurred";
+            if (isApiError(err)) {
+                errorMessage = err.error_description || err.error;
+            } else if (err instanceof Error) {
+                errorMessage = err.message;
+            }
             setError({
                 title: "Error",
-                message: apiError.error_description || apiError.error || "An unexpected error occurred",
+                message: errorMessage,
             });
             setStep("error");
         }
@@ -195,10 +200,19 @@ function AuthorizePageContent() {
                 window.location.href = errorRedirect;
             }
         } catch (err) {
-            const apiError = err as ApiError;
+            let error = "server_error";
+            let errorDescription = "An error occurred during authorization";
+
+            if (isApiError(err)) {
+                error = err.error;
+                errorDescription = err.error_description || errorDescription;
+            } else if (err instanceof Error) {
+                errorDescription = err.message;
+            }
+
             const errorRedirect = buildErrorRedirect(authParams.redirect_uri, {
-                error: apiError.error || "server_error",
-                error_description: apiError.error_description || "An error occurred during authorization",
+                error,
+                error_description: errorDescription,
                 state: authParams.state,
             });
             window.location.href = errorRedirect;
