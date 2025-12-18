@@ -1,9 +1,11 @@
 package oidc
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/Anvoria/authly/internal/domain/auth"
+
 	"github.com/Anvoria/authly/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -107,12 +109,19 @@ func (h *Handler) Authorize(c *fiber.Ctx) error {
 	}
 
 	// Redirect to redirect_uri with code and state
-	redirectURL := req.RedirectURI + "?code=" + res.Code
-	if res.State != "" {
-		redirectURL += "&state=" + res.State
+	u, err := url.Parse(req.RedirectURI)
+	if err != nil {
+		return utils.ErrorResponse(c, "invalid_redirect_uri: "+err.Error(), fiber.StatusBadRequest)
 	}
 
-	return c.Redirect(redirectURL, fiber.StatusFound)
+	q := u.Query()
+	q.Set("code", res.Code)
+	if res.State != "" {
+		q.Set("state", res.State)
+	}
+	u.RawQuery = q.Encode()
+
+	return c.Redirect(u.String(), fiber.StatusFound)
 }
 
 // Token handles the OAuth2 token request (authorization code exchange)
@@ -341,24 +350,36 @@ func (h *Handler) ConfirmAuthorization(c *fiber.Ctx) error {
 	}
 
 	// Build redirect URI with code and state
-	redirectURI := req.RedirectURI + "?code=" + res.Code
+	u, err := url.Parse(req.RedirectURI)
+	if err != nil {
+		return c.Status(fiber.StatusOK).JSON(&ConfirmAuthorizationResponse{
+			Success:          false,
+			Error:            "invalid_redirect_uri",
+			ErrorDescription: "Invalid redirect_uri format: " + err.Error(),
+		})
+	}
+
+	q := u.Query()
+	q.Set("code", res.Code)
 	if res.State != "" {
-		redirectURI += "&state=" + res.State
+		q.Set("state", res.State)
 	}
 
 	if req.CodeChallenge != "" {
-		redirectURI += "&code_challenge=" + req.CodeChallenge
+		q.Set("code_challenge", req.CodeChallenge)
 	}
 	if req.CodeChallengeMethod != "" {
-		redirectURI += "&code_challenge_method=" + req.CodeChallengeMethod
+		q.Set("code_challenge_method", req.CodeChallengeMethod)
 	}
 
 	if req.ClientID != "" {
-		redirectURI += "&client_id=" + req.ClientID
+		q.Set("client_id", req.ClientID)
 	}
+
+	u.RawQuery = q.Encode()
 
 	return c.Status(fiber.StatusOK).JSON(&ConfirmAuthorizationResponse{
 		Success:     true,
-		RedirectURI: redirectURI,
+		RedirectURI: u.String(),
 	})
 }
