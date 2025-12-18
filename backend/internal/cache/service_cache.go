@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Anvoria/authly/internal/domain/service"
+	"github.com/google/uuid"
 )
 
 const (
@@ -34,12 +35,6 @@ func NewServiceCache(repo service.Repository) *ServiceCache {
 	return &ServiceCache{repo: repo}
 }
 
-// cachedServiceInfo represents cached service information
-type cachedServiceInfo struct {
-	ClientID string `json:"client_id"`
-	Active   bool   `json:"active"`
-}
-
 // GetByDomain retrieves a service by domain, using cache if available
 func (c *ServiceCache) GetByDomain(ctx context.Context, domain string) (*service.Service, error) {
 	cacheKey := ServiceCachePrefix + domain
@@ -51,13 +46,12 @@ func (c *ServiceCache) GetByDomain(ctx context.Context, domain string) (*service
 	// Try to get from Redis cache
 	cached, err := RedisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
-		var info cachedServiceInfo
-		if err := json.Unmarshal([]byte(cached), &info); err == nil {
-			slog.Debug("Service cache hit from Redis", "domain", domain, "key", cacheKey)
-			return &service.Service{
-				ClientID: info.ClientID,
-				Active:   info.Active,
-			}, nil
+		var svc service.Service
+		if err := json.Unmarshal([]byte(cached), &svc); err == nil {
+			if svc.ID != uuid.Nil {
+				slog.Debug("Service cache hit from Redis", "domain", domain, "key", cacheKey)
+				return &svc, nil
+			}
 		}
 	}
 
@@ -68,11 +62,7 @@ func (c *ServiceCache) GetByDomain(ctx context.Context, domain string) (*service
 		return nil, err
 	}
 
-	info := cachedServiceInfo{
-		ClientID: svc.ClientID,
-		Active:   svc.Active,
-	}
-	data, err := json.Marshal(info)
+	data, err := json.Marshal(svc)
 	if err == nil {
 		if err := RedisClient.Set(ctx, cacheKey, data, ServiceCacheTTL).Err(); err != nil {
 			slog.Warn("Failed to store service in Redis cache", "domain", domain, "error", err)
@@ -95,13 +85,12 @@ func (c *ServiceCache) GetByClientID(ctx context.Context, clientID string) (*ser
 	// Try to get from Redis cache
 	cached, err := RedisClient.Get(ctx, cacheKey).Result()
 	if err == nil {
-		var info cachedServiceInfo
-		if err := json.Unmarshal([]byte(cached), &info); err == nil {
-			slog.Debug("Service cache hit from Redis", "client_id", clientID, "key", cacheKey)
-			return &service.Service{
-				ClientID: info.ClientID,
-				Active:   info.Active,
-			}, nil
+		var svc service.Service
+		if err := json.Unmarshal([]byte(cached), &svc); err == nil {
+			if svc.ID != uuid.Nil {
+				slog.Debug("Service cache hit from Redis", "client_id", clientID, "key", cacheKey)
+				return &svc, nil
+			}
 		}
 	}
 
@@ -112,11 +101,7 @@ func (c *ServiceCache) GetByClientID(ctx context.Context, clientID string) (*ser
 		return nil, err
 	}
 
-	info := cachedServiceInfo{
-		ClientID: svc.ClientID,
-		Active:   svc.Active,
-	}
-	data, err := json.Marshal(info)
+	data, err := json.Marshal(svc)
 	if err == nil {
 		if err := RedisClient.Set(ctx, cacheKey, data, ServiceCacheTTL).Err(); err != nil {
 			slog.Warn("Failed to store service in Redis cache", "client_id", clientID, "error", err)
