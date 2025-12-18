@@ -127,7 +127,7 @@ func (c *ServiceCache) InvalidateByDomain(ctx context.Context, domain string) er
 	// Try to get service to find client_id for complete invalidation
 	// We ignore error here because even if we fail to find the service/client_id,
 	// we still want to at least invalidate the domain key
-	svc, _ := c.GetByDomain(ctx, domain)
+	svc, _ := c.repo.FindByDomain(domain)
 
 	keys := []string{cacheKey}
 	if svc != nil && svc.ClientID != "" {
