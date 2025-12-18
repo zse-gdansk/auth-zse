@@ -26,6 +26,16 @@ import { IRequestResponsePayload } from "./globals/api/interfaces/IRequestRespon
 
 export type { ApiError };
 
+/**
+ * Type guard to check if an error is an ApiError.
+ *
+ * @param err - The error to check
+ * @returns `true` if `err` matches the `ApiError` structure, `false` otherwise
+ */
+export function isApiError(err: unknown): err is ApiError {
+    return typeof err === "object" && err !== null && ("error" in err || "error_description" in err);
+}
+
 async function handleAuthRequest<T, S>(
     request: () => Promise<IRequestResponsePayload<T, unknown>>,
     schema: z.ZodType<S>,

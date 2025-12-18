@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
-import { login, getMe, type ApiError } from "@/authly/lib/api";
+import { login, getMe, isApiError } from "@/authly/lib/api";
 import { loginRequestSchema, type LoginRequest } from "@/authly/lib/schemas/auth/login";
 import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 
@@ -145,8 +145,13 @@ function LoginPageContent() {
                 setApiError(response.error || "Login failed");
             }
         } catch (err) {
-            const apiError = err as ApiError;
-            setApiError(apiError.error_description || apiError.error || "An error occurred");
+            if (isApiError(err)) {
+                setApiError(err.error_description || err.error);
+            } else if (err instanceof Error) {
+                setApiError(err.message);
+            } else {
+                setApiError("An error occurred");
+            }
         } finally {
             setIsLoading(false);
         }
