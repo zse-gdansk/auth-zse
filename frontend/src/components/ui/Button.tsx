@@ -5,15 +5,26 @@ import { cn } from "@/authly/lib/utils";
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
 export type ButtonSize = "sm" | "md" | "lg";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonPropsBase {
     variant?: ButtonVariant;
     size?: ButtonSize;
-    href?: string;
     icon?: React.ReactNode;
     iconPosition?: "left" | "right";
     fullWidth?: boolean;
     children: React.ReactNode;
+    className?: string;
 }
+
+interface ButtonAsButton extends ButtonPropsBase, Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
+    href?: never;
+}
+
+interface ButtonAsAnchor
+    extends ButtonPropsBase, Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "children" | "href"> {
+    href: string;
+}
+
+export type ButtonProps = ButtonAsButton | ButtonAsAnchor;
 
 const variantStyles: Record<ButtonVariant, string> = {
     primary:
@@ -46,7 +57,6 @@ const sizeStyles: Record<ButtonSize, string> = {
 export default function Button({
     variant = "primary",
     size = "md",
-    href,
     icon,
     iconPosition = "right",
     fullWidth = false,
@@ -77,16 +87,17 @@ export default function Button({
         </>
     );
 
-    if (href) {
+    if ("href" in props && typeof props.href === "string") {
+        const { href, ...anchorProps } = props as ButtonAsAnchor;
         return (
-            <Link href={href} className={baseStyles} {...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
+            <Link href={href} className={baseStyles} {...anchorProps}>
                 {content}
             </Link>
         );
     }
 
     return (
-        <button className={baseStyles} {...props}>
+        <button className={baseStyles} {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
             {content}
         </button>
     );
