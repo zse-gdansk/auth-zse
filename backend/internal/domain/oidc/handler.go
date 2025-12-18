@@ -34,7 +34,7 @@ func OpenIDConfigurationHandler(domain string) fiber.Handler {
 			"authorization_endpoint": domain + "/v1/oauth/authorize",
 			"token_endpoint":         domain + "/v1/oauth/token",
 			"userinfo_endpoint":      domain + "/v1/oauth/userinfo",
-			"jwks_uri":               domain + "/v1/.well-known/jwks.json",
+			"jwks_uri":               domain + "/.well-known/jwks.json",
 
 			"scopes_supported": []string{
 				"openid", "profile", "email",
