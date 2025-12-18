@@ -217,5 +217,5 @@ export async function generateCodeChallenge(codeVerifier: string): Promise<strin
     return btoa(String.fromCharCode(...new Uint8Array(hash)))
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
-        .replace(/=+\$/, "");
+        .replace(/=+$/, "");
 }
