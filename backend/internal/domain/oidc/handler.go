@@ -365,17 +365,6 @@ func (h *Handler) ConfirmAuthorization(c *fiber.Ctx) error {
 		q.Set("state", res.State)
 	}
 
-	if req.CodeChallenge != "" {
-		q.Set("code_challenge", req.CodeChallenge)
-	}
-	if req.CodeChallengeMethod != "" {
-		q.Set("code_challenge_method", req.CodeChallengeMethod)
-	}
-
-	if req.ClientID != "" {
-		q.Set("client_id", req.ClientID)
-	}
-
 	u.RawQuery = q.Encode()
 
 	return c.Status(fiber.StatusOK).JSON(&ConfirmAuthorizationResponse{
