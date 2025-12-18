@@ -248,13 +248,29 @@ export abstract class BaseClient {
         }
     }
 
-    public async post<T = unknown, D = Error>(
+    private async request<T = unknown, D = Error>(
+        method: "post" | "put" | "patch" | "delete",
         url: string,
         data?: unknown,
         config?: AxiosRequestConfig<unknown>,
     ): Promise<IRequestResponsePayload<T, D>> {
         try {
-            const axiosResponse: AxiosResponse<BackendResponse<T>> = await this.axiosInstance.post(url, data, config);
+            let axiosResponse: AxiosResponse<BackendResponse<T>>;
+
+            switch (method) {
+                case "delete":
+                    axiosResponse = await this.axiosInstance.delete(url, config);
+                    break;
+                case "post":
+                    axiosResponse = await this.axiosInstance.post(url, data, config);
+                    break;
+                case "put":
+                    axiosResponse = await this.axiosInstance.put(url, data, config);
+                    break;
+                case "patch":
+                    axiosResponse = await this.axiosInstance.patch(url, data, config);
+                    break;
+            }
 
             if (axiosResponse.status === 302 || axiosResponse.status === 301) {
                 const redirectUrl = axiosResponse.headers.location || axiosResponse.request?.responseURL || url;
@@ -316,6 +332,14 @@ export abstract class BaseClient {
                 rawError: axiosError,
             };
         }
+    }
+
+    public async post<T = unknown, D = Error>(
+        url: string,
+        data?: unknown,
+        config?: AxiosRequestConfig<unknown>,
+    ): Promise<IRequestResponsePayload<T, D>> {
+        return this.request<T, D>("post", url, data, config);
     }
 
     public async put<T = unknown, D = Error>(
@@ -323,69 +347,7 @@ export abstract class BaseClient {
         data?: unknown,
         config?: AxiosRequestConfig<unknown>,
     ): Promise<IRequestResponsePayload<T, D>> {
-        try {
-            const axiosResponse: AxiosResponse<BackendResponse<T>> = await this.axiosInstance.put(url, data, config);
-
-            if (axiosResponse.status === 302 || axiosResponse.status === 301) {
-                const redirectUrl = axiosResponse.headers.location || axiosResponse.request?.responseURL || url;
-                return {
-                    success: false,
-                    isRedirect: true,
-                    redirectUrl,
-                    rawResponse: axiosResponse as AxiosResponse<unknown>,
-                };
-            }
-
-            const parsed = parseBackendResponse(axiosResponse);
-
-            if (parsed.success) {
-                const response: IRequestResponsePayload<T, D> = {
-                    success: true,
-                    data: parsed.data as T,
-                    message: parsed.message,
-                    rawResponse: axiosResponse,
-                };
-
-                BaseClient.clearCache(url);
-                return response;
-            } else {
-                return {
-                    success: false,
-                    error: parsed.error ?? "An error occurred",
-                    errorDescription: parsed.errorDescription,
-                    errorUri: parsed.errorUri,
-                    rawError: new AxiosError(parsed.error) as AxiosError<D>,
-                };
-            }
-        } catch (error) {
-            const axiosError = error as AxiosError<D>;
-            const errorData = axiosError.response?.data;
-
-            if (errorData) {
-                if (isOIDCErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        errorDescription: errorData.error_description,
-                        errorUri: errorData.error_uri,
-                        rawError: axiosError,
-                    };
-                }
-                if (isErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        rawError: axiosError,
-                    };
-                }
-            }
-
-            return {
-                success: false,
-                error: getApiErrorMessage(axiosError),
-                rawError: axiosError,
-            };
-        }
+        return this.request<T, D>("put", url, data, config);
     }
 
     public async patch<T = unknown, D = Error>(
@@ -393,138 +355,14 @@ export abstract class BaseClient {
         data?: unknown,
         config?: AxiosRequestConfig<unknown>,
     ): Promise<IRequestResponsePayload<T, D>> {
-        try {
-            const axiosResponse: AxiosResponse<BackendResponse<T>> = await this.axiosInstance.patch(url, data, config);
-
-            if (axiosResponse.status === 302 || axiosResponse.status === 301) {
-                const redirectUrl = axiosResponse.headers.location || axiosResponse.request?.responseURL || url;
-                return {
-                    success: false,
-                    isRedirect: true,
-                    redirectUrl,
-                    rawResponse: axiosResponse as AxiosResponse<unknown>,
-                };
-            }
-
-            const parsed = parseBackendResponse(axiosResponse);
-
-            if (parsed.success) {
-                const response: IRequestResponsePayload<T, D> = {
-                    success: true,
-                    data: parsed.data as T,
-                    message: parsed.message,
-                    rawResponse: axiosResponse,
-                };
-
-                BaseClient.clearCache(url);
-                return response;
-            } else {
-                return {
-                    success: false,
-                    error: parsed.error ?? "An error occurred",
-                    errorDescription: parsed.errorDescription,
-                    errorUri: parsed.errorUri,
-                    rawError: new AxiosError(parsed.error) as AxiosError<D>,
-                };
-            }
-        } catch (error) {
-            const axiosError = error as AxiosError<D>;
-            const errorData = axiosError.response?.data;
-
-            if (errorData) {
-                if (isOIDCErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        errorDescription: errorData.error_description,
-                        errorUri: errorData.error_uri,
-                        rawError: axiosError,
-                    };
-                }
-                if (isErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        rawError: axiosError,
-                    };
-                }
-            }
-
-            return {
-                success: false,
-                error: getApiErrorMessage(axiosError),
-                rawError: axiosError,
-            };
-        }
+        return this.request<T, D>("patch", url, data, config);
     }
 
     public async delete<T = unknown, D = Error>(
         url: string,
         config?: AxiosRequestConfig<unknown>,
     ): Promise<IRequestResponsePayload<T, D>> {
-        try {
-            const axiosResponse: AxiosResponse<BackendResponse<T>> = await this.axiosInstance.delete(url, config);
-
-            if (axiosResponse.status === 302 || axiosResponse.status === 301) {
-                const redirectUrl = axiosResponse.headers.location || axiosResponse.request?.responseURL || url;
-                return {
-                    success: false,
-                    isRedirect: true,
-                    redirectUrl,
-                    rawResponse: axiosResponse as AxiosResponse<unknown>,
-                };
-            }
-
-            const parsed = parseBackendResponse(axiosResponse);
-
-            if (parsed.success) {
-                const response: IRequestResponsePayload<T, D> = {
-                    success: true,
-                    data: parsed.data as T,
-                    message: parsed.message,
-                    rawResponse: axiosResponse,
-                };
-
-                BaseClient.clearCache(url);
-                return response;
-            } else {
-                return {
-                    success: false,
-                    error: parsed.error ?? "An error occurred",
-                    errorDescription: parsed.errorDescription,
-                    errorUri: parsed.errorUri,
-                    rawError: new AxiosError(parsed.error) as AxiosError<D>,
-                };
-            }
-        } catch (error) {
-            const axiosError = error as AxiosError<D>;
-            const errorData = axiosError.response?.data;
-
-            if (errorData) {
-                if (isOIDCErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        errorDescription: errorData.error_description,
-                        errorUri: errorData.error_uri,
-                        rawError: axiosError,
-                    };
-                }
-                if (isErrorResponse(errorData)) {
-                    return {
-                        success: false,
-                        error: errorData.error,
-                        rawError: axiosError,
-                    };
-                }
-            }
-
-            return {
-                success: false,
-                error: getApiErrorMessage(axiosError),
-                rawError: axiosError,
-            };
-        }
+        return this.request<T, D>("delete", url, undefined, config);
     }
 }
 
