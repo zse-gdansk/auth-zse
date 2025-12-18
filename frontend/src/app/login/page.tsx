@@ -7,7 +7,7 @@ import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
 import { login, getMe, isApiError } from "@/authly/lib/api";
 import { loginRequestSchema, type LoginRequest } from "@/authly/lib/schemas/auth/login";
-import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
+import { generateCodeVerifier, generateCodeChallenge, redirectToAuthorize } from "@/authly/lib/oidc";
 
 type LoginFormData = {
     username: string;
@@ -114,30 +114,8 @@ function LoginPageContent() {
                 const oidcParams = searchParams.get("oidc_params");
 
                 if (oidcParams) {
-                    try {
-                        const decoded = decodeURIComponent(oidcParams);
-                        const params = new URLSearchParams(decoded);
-
-                        if (!params.has("code_challenge")) {
-                            const verifier = generateCodeVerifier();
-                            const challenge = await generateCodeChallenge(verifier);
-
-                            params.set("code_challenge", challenge);
-                            params.set("code_challenge_method", "S256");
-
-                            localStorage.setItem("oidc_code_verifier", verifier);
-                        }
-
-                        const authorizeUrl = new URL("/authorize", window.location.origin);
-                        params.forEach((value, key) => {
-                            authorizeUrl.searchParams.set(key, value);
-                        });
-                        window.location.href = authorizeUrl.toString();
-                        return;
-                    } catch {
-                        router.push("/authorize?" + oidcParams);
-                        return;
-                    }
+                    redirectToAuthorize(oidcParams);
+                    return;
                 }
 
                 router.push("/");

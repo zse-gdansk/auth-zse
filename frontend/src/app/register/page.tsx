@@ -7,6 +7,7 @@ import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
 import { register, getMe, type ApiError } from "@/authly/lib/api";
 import { registerFormSchema, registerRequestSchema, type RegisterFormData } from "@/authly/lib/schemas/auth/register";
+import { redirectToAuthorize } from "@/authly/lib/oidc";
 
 /**
  * Renders the registration page UI and manages the full registration flow: checks current authentication and redirects if already authenticated, validates form input, submits registration requests, preserves and forwards `oidc_params` when present, and surfaces field and API errors.
@@ -80,19 +81,8 @@ function RegisterPageContent() {
                 const oidcParams = searchParams.get("oidc_params");
 
                 if (oidcParams) {
-                    try {
-                        const decoded = decodeURIComponent(oidcParams);
-                        const params = new URLSearchParams(decoded);
-                        const authorizeUrl = new URL("/authorize", window.location.origin);
-                        params.forEach((value, key) => {
-                            authorizeUrl.searchParams.set(key, value);
-                        });
-                        window.location.href = authorizeUrl.toString();
-                        return;
-                    } catch {
-                        router.push("/authorize?" + oidcParams);
-                        return;
-                    }
+                    redirectToAuthorize(oidcParams);
+                    return;
                 }
 
                 router.push("/");

@@ -219,3 +219,26 @@ export async function generateCodeChallenge(codeVerifier: string): Promise<strin
         .replace(/\//g, "_")
         .replace(/=+$/, "");
 }
+
+/**
+ * Redirects the user to the authorization endpoint with the provided OIDC parameters.
+ *
+ * Decodes the provided parameters string, constructs a URL to the local `/authorize` endpoint,
+ * appends the parameters, and navigates the window to that URL. Falls back to a simple
+ * string append if URL construction fails.
+ *
+ * @param oidcParams - URL-encoded OIDC query parameters
+ */
+export function redirectToAuthorize(oidcParams: string): void {
+    try {
+        const decoded = decodeURIComponent(oidcParams);
+        const params = new URLSearchParams(decoded);
+        const authorizeUrl = new URL("/authorize", window.location.origin);
+        params.forEach((value, key) => {
+            authorizeUrl.searchParams.set(key, value);
+        });
+        window.location.href = authorizeUrl.toString();
+    } catch {
+        window.location.href = `/authorize?${oidcParams}`;
+    }
+}
