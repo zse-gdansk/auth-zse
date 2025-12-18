@@ -47,6 +47,7 @@ export default function ConsentScreen({
 
             {clientLogoUrl && (
                 <div className="flex justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={clientLogoUrl} alt={clientName} className="h-16 w-16 rounded-lg object-cover" />
                 </div>
             )}
