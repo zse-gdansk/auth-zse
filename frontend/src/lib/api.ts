@@ -21,8 +21,42 @@ import {
 } from "./schemas/oidc";
 import type { ApiError } from "./schemas/auth/login";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { z } from "zod";
+import { IRequestResponsePayload } from "./globals/api/interfaces/IRequestResponsePayload";
 
 export type { ApiError };
+
+async function handleAuthRequest<T, S>(
+    request: () => Promise<IRequestResponsePayload<T, unknown>>,
+    schema: z.ZodType<S>,
+): Promise<S> {
+    const response = await request();
+
+    if (!response.success) {
+        if ("isRedirect" in response && response.isRedirect) {
+            return schema.parse({
+                success: false,
+                error: "redirect_occurred",
+            });
+        }
+        if ("error" in response) {
+            return schema.parse({
+                success: false,
+                error: response.error,
+            });
+        }
+        return schema.parse({
+            success: false,
+            error: "unknown_error",
+        });
+    }
+
+    return schema.parse({
+        success: true,
+        data: response.data,
+        message: response.message ?? "",
+    });
+}
 
 /**
  * Authenticate a user with the provided login credentials and return a validated login response.
@@ -32,49 +66,22 @@ export type { ApiError };
  */
 export async function login(data: LoginRequest): Promise<LoginResponse> {
     const validatedData = loginRequestSchema.parse(data);
-
-    const response = await GeneralClient.post<{
-        user: {
-            id: string;
-            username: string;
-            first_name: string;
-            last_name: string;
-            email: string | null;
-            is_active: boolean;
-            created_at: string;
-            updated_at: string;
-        };
-    }>("/auth/login", validatedData);
-
-    if (!response.success) {
-        if ("isRedirect" in response && response.isRedirect) {
-            const errorResponse: LoginResponse = {
-                success: false,
-                error: "redirect_occurred",
-            };
-            return loginResponseSchema.parse(errorResponse);
-        }
-        if ("error" in response) {
-            const errorResponse: LoginResponse = {
-                success: false,
-                error: response.error,
-            };
-            return loginResponseSchema.parse(errorResponse);
-        }
-        const errorResponse: LoginResponse = {
-            success: false,
-            error: "unknown_error",
-        };
-        return loginResponseSchema.parse(errorResponse);
-    }
-
-    const successResponse: LoginResponse = {
-        success: true,
-        data: response.data,
-        message: response.message ?? "",
-    };
-
-    return loginResponseSchema.parse(successResponse);
+    return handleAuthRequest(
+        () =>
+            GeneralClient.post<{
+                user: {
+                    id: string;
+                    username: string;
+                    first_name: string;
+                    last_name: string;
+                    email: string | null;
+                    is_active: boolean;
+                    created_at: string;
+                    updated_at: string;
+                };
+            }>("/auth/login", validatedData),
+        loginResponseSchema,
+    );
 }
 
 /**
@@ -85,38 +92,10 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
  */
 export async function register(data: RegisterRequest): Promise<RegisterResponse> {
     const validatedData = registerRequestSchema.parse(data);
-
-    const response = await GeneralClient.post<{ user: { id: string } }>("/auth/register", validatedData);
-
-    if (!response.success) {
-        if ("isRedirect" in response && response.isRedirect) {
-            const errorResponse: RegisterResponse = {
-                success: false,
-                error: "redirect_occurred",
-            };
-            return registerResponseSchema.parse(errorResponse);
-        }
-        if ("error" in response) {
-            const errorResponse: RegisterResponse = {
-                success: false,
-                error: response.error,
-            };
-            return registerResponseSchema.parse(errorResponse);
-        }
-        const errorResponse: RegisterResponse = {
-            success: false,
-            error: "unknown_error",
-        };
-        return registerResponseSchema.parse(errorResponse);
-    }
-
-    const successResponse: RegisterResponse = {
-        success: true,
-        data: response.data,
-        message: response.message ?? "",
-    };
-
-    return registerResponseSchema.parse(successResponse);
+    return handleAuthRequest(
+        () => GeneralClient.post<{ user: { id: string } }>("/auth/register", validatedData),
+        registerResponseSchema,
+    );
 }
 
 /**
@@ -125,48 +104,22 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
  * @returns A `MeResponse` containing the user's profile under `data` when successful; otherwise a `MeResponse` with `success: false` and an `error` string describing the failure—either `redirect_occurred`, the backend-provided error, or `unknown_error`.
  */
 export async function getMe(): Promise<MeResponse> {
-    const response = await GeneralClient.get<{
-        user: {
-            id: string;
-            username: string;
-            first_name: string;
-            last_name: string;
-            email: string | null;
-            is_active: boolean;
-            created_at: string;
-            updated_at: string;
-        };
-    }>("/auth/me");
-
-    if (!response.success) {
-        if ("isRedirect" in response && response.isRedirect) {
-            const errorResponse: MeResponse = {
-                success: false,
-                error: "redirect_occurred",
-            };
-            return meResponseSchema.parse(errorResponse);
-        }
-        if ("error" in response) {
-            const errorResponse: MeResponse = {
-                success: false,
-                error: response.error,
-            };
-            return meResponseSchema.parse(errorResponse);
-        }
-        const errorResponse: MeResponse = {
-            success: false,
-            error: "unknown_error",
-        };
-        return meResponseSchema.parse(errorResponse);
-    }
-
-    const successResponse: MeResponse = {
-        success: true,
-        data: response.data,
-        message: response.message ?? "",
-    };
-
-    return meResponseSchema.parse(successResponse);
+    return handleAuthRequest(
+        () =>
+            GeneralClient.get<{
+                user: {
+                    id: string;
+                    username: string;
+                    first_name: string;
+                    last_name: string;
+                    email: string | null;
+                    is_active: boolean;
+                    created_at: string;
+                    updated_at: string;
+                };
+            }>("/auth/me"),
+        meResponseSchema,
+    );
 }
 
 /**
