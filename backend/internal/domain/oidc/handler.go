@@ -120,6 +120,15 @@ func (h *Handler) Authorize(c *fiber.Ctx) error {
 	return c.Redirect(u.String(), fiber.StatusFound)
 }
 
+// handleOIDCError handles errors from OIDC service methods, mapping them to standard OIDC error responses
+func (h *Handler) handleOIDCError(c *fiber.Ctx, err error, context string) error {
+	oidcErr := MapErrorToOIDC(err)
+	if oidcErr.Code == ErrorCodeServerError {
+		slog.Error("Token endpoint error", "context", context, "error", err)
+	}
+	return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+}
+
 // Token handles the OAuth2 token request (authorization code exchange)
 func (h *Handler) Token(c *fiber.Ctx) error {
 	var req TokenRequest
@@ -144,22 +153,18 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 
 		res, err := h.service.RefreshToken(&req)
 		if err != nil {
-			oidcErr := MapErrorToOIDC(err)
-			if oidcErr.Code == ErrorCodeServerError {
-				slog.Error("Token endpoint error (refresh_token)", "error", err)
-			}
-			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+			return h.handleOIDCError(c, err, "refresh_token")
 		}
 		return c.Status(fiber.StatusOK).JSON(res)
 
 	case "client_credentials":
+		if req.ClientSecret == "" {
+			return utils.OIDCErrorResponse(c, ErrorCodeInvalidRequest, "client_secret is required")
+		}
+
 		res, err := h.service.ClientCredentialsGrant(&req)
 		if err != nil {
-			oidcErr := MapErrorToOIDC(err)
-			if oidcErr.Code == ErrorCodeServerError {
-				slog.Error("Token endpoint error (client_credentials)", "error", err)
-			}
-			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+			return h.handleOIDCError(c, err, "client_credentials")
 		}
 		return c.Status(fiber.StatusOK).JSON(res)
 
@@ -173,11 +178,7 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 
 		res, err := h.service.PasswordGrant(&req)
 		if err != nil {
-			oidcErr := MapErrorToOIDC(err)
-			if oidcErr.Code == ErrorCodeServerError {
-				slog.Error("Token endpoint error (password)", "error", err)
-			}
-			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+			return h.handleOIDCError(c, err, "password")
 		}
 		return c.Status(fiber.StatusOK).JSON(res)
 
@@ -197,16 +198,12 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 
 		// Parse session cookie: format is "sessionID:secret"
 		parts := strings.SplitN(sessionCookie, ":", 2)
-		if len(parts) != 2 {
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return utils.OIDCErrorResponse(c, ErrorCodeInvalidGrant, "Invalid session cookie format", fiber.StatusUnauthorized)
 		}
 
 		sessionIDStr := parts[0]
 		refreshSecret := parts[1]
-
-		if sessionIDStr == "" || refreshSecret == "" {
-			return utils.OIDCErrorResponse(c, ErrorCodeInvalidGrant, "Invalid session cookie", fiber.StatusUnauthorized)
-		}
 
 		// Parse session ID as UUID
 		sessionID, err := uuid.Parse(sessionIDStr)
@@ -217,11 +214,7 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 		// Call service with existing session
 		res, err := h.service.ExchangeCode(&req, sessionID, refreshSecret)
 		if err != nil {
-			oidcErr := MapErrorToOIDC(err)
-			if oidcErr.Code == ErrorCodeServerError {
-				slog.Error("Token endpoint error", "error", err)
-			}
-			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+			return h.handleOIDCError(c, err, "authorization_code")
 		}
 
 		return c.Status(fiber.StatusOK).JSON(res)
