@@ -91,6 +91,45 @@ func (s *Service) GenerateAccessToken(sub, sid string, scopes []string, audience
 	return s.KeyStore.Sign(claims)
 }
 
+// GenerateIDToken generates an OIDC-compliant ID token
+func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Time, claims map[string]interface{}) (string, error) {
+	now := time.Now()
+	exp := now.Add(1 * time.Hour)
+
+	builder := jwt.NewBuilder().
+		Subject(sub).
+		Audience([]string{audience}).
+		Issuer(s.issuer).
+		IssuedAt(now).
+		Expiration(exp).
+		Claim("auth_time", authTime.Unix())
+
+	if nonce != "" {
+		builder.Claim("nonce", nonce)
+	}
+
+	// Reserved claims that cannot be overridden by custom claims
+	reservedClaims := map[string]bool{
+		"iss": true, "sub": true, "aud": true, "exp": true, "iat": true,
+		"auth_time": true, "nonce": true, "acr": true, "amr": true, "azp": true,
+	}
+
+	// Add additional claims (profile, email, etc.)
+	for k, v := range claims {
+		if reservedClaims[k] {
+			return "", fmt.Errorf("cannot override reserved claim: %s", k)
+		}
+		builder.Claim(k, v)
+	}
+
+	token, err := builder.Build()
+	if err != nil {
+		return "", err
+	}
+
+	return s.KeyStore.SignToken(token)
+}
+
 // filterAccessTokenScopes removes OIDC scopes that don't belong in access token
 // filterAccessTokenScopes filters out OIDC scopes that are intended for ID tokens or userinfo ("openid", "profile", "email") from the provided scope list.
 // It returns a new slice containing only the scopes appropriate for inclusion in an access token.
@@ -117,7 +156,7 @@ func (s *Service) Login(username, password, userAgent, ip string) (*LoginRespons
 		return nil, ErrInvalidCredentials
 	}
 
-	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, 24*time.Hour)
+	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, nil, 24*time.Hour)
 	if err != nil {
 		return nil, err
 	}

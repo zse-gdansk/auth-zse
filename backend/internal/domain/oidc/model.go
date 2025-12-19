@@ -14,6 +14,7 @@ type AuthorizeRequest struct {
 	RedirectURI         string `query:"redirect_uri" validate:"required,url"`
 	Scope               string `query:"scope" validate:"required"`
 	State               string `query:"state"`
+	Nonce               string `query:"nonce"`
 	CodeChallenge       string `query:"code_challenge"`
 	CodeChallengeMethod string `query:"code_challenge_method" validate:"omitempty,oneof=S256"`
 }
@@ -26,12 +27,18 @@ type AuthorizeResponse struct {
 
 // TokenRequest represents the OAuth2 token request
 type TokenRequest struct {
-	GrantType    string `form:"grant_type" validate:"required,oneof=authorization_code"`
-	Code         string `form:"code" validate:"required"`
-	RedirectURI  string `form:"redirect_uri" validate:"required"`
+	GrantType    string `form:"grant_type" validate:"required,oneof=authorization_code refresh_token password client_credentials"`
+	Code         string `form:"code"`
+	RedirectURI  string `form:"redirect_uri"`
 	ClientID     string `form:"client_id" validate:"required"`
 	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
+	RefreshToken string `form:"refresh_token"`
+	Scope        string `form:"scope"`
+	Username     string `form:"username"`
+	Password     string `form:"password"`
+	UserAgent    string `form:"-"` // Populated from request header
+	IPAddress    string `form:"-"` // Populated from request remote address
 }
 
 // TokenResponse represents the OAuth2 token response
@@ -51,6 +58,7 @@ type ConfirmAuthorizationRequest struct {
 	ResponseType        string `json:"response_type" validate:"required,oneof=code"`
 	Scope               string `json:"scope" validate:"required"`
 	State               string `json:"state"`
+	Nonce               string `json:"nonce"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method" validate:"omitempty,oneof=s256 S256"`
 }
@@ -72,6 +80,7 @@ type AuthorizationCode struct {
 	UserID        uuid.UUID `gorm:"column:user_id;type:uuid;not null;index"`
 	RedirectURI   string    `gorm:"column:redirect_uri;type:text;not null"`
 	Scopes        string    `gorm:"column:scopes;type:text;not null"` // space-separated
+	Nonce         string    `gorm:"column:nonce;type:text"`
 	CodeChallenge string    `gorm:"column:code_challenge;type:varchar(255)"`
 	ChallengeMeth string    `gorm:"column:challenge_meth;type:varchar(10)"`
 	ExpiresAt     time.Time `gorm:"column:expires_at;not null;index"`
