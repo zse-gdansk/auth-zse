@@ -244,9 +244,9 @@ func (s *Service) ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSe
 		return nil, ErrInvalidRedirectURI
 	}
 
-	// Validate client_secret if provided (for confidential clients)
-	if req.ClientSecret != "" {
-		if service.ClientSecret != req.ClientSecret {
+	// Validate client_secret for confidential clients
+	if service.ClientSecret != "" {
+		if req.ClientSecret != service.ClientSecret {
 			return nil, ErrInvalidClientSecret
 		}
 	}
@@ -377,9 +377,9 @@ func (s *Service) RefreshToken(req *TokenRequest) (*TokenResponse, error) {
 		return nil, ErrClientNotActive
 	}
 
-	// Validate client_secret if provided
-	if service.ClientSecret != "" && req.ClientSecret != "" {
-		if service.ClientSecret != req.ClientSecret {
+	// Validate client_secret for confidential clients
+	if service.ClientSecret != "" {
+		if req.ClientSecret != service.ClientSecret {
 			return nil, ErrInvalidClientSecret
 		}
 	}
@@ -567,9 +567,9 @@ func (s *Service) PasswordGrant(req *TokenRequest) (*TokenResponse, error) {
 		return nil, ErrClientNotActive
 	}
 
-	// Validate client_secret if provided (and stored)
-	if service.ClientSecret != "" && req.ClientSecret != "" {
-		if service.ClientSecret != req.ClientSecret {
+	// Validate client_secret for confidential clients
+	if service.ClientSecret != "" {
+		if req.ClientSecret != service.ClientSecret {
 			return nil, ErrInvalidClientSecret
 		}
 	}
