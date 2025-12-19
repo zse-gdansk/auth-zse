@@ -164,6 +164,13 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(res)
 
 	case "password":
+		if req.Username == "" {
+			return utils.OIDCErrorResponse(c, ErrorCodeInvalidRequest, "username is required")
+		}
+		if req.Password == "" {
+			return utils.OIDCErrorResponse(c, ErrorCodeInvalidRequest, "password is required")
+		}
+
 		res, err := h.service.PasswordGrant(&req)
 		if err != nil {
 			oidcErr := MapErrorToOIDC(err)
