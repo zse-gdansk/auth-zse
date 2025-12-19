@@ -108,8 +108,17 @@ func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Tim
 		builder.Claim("nonce", nonce)
 	}
 
+	// Reserved claims that cannot be overridden by custom claims
+	reservedClaims := map[string]bool{
+		"iss": true, "sub": true, "aud": true, "exp": true, "iat": true,
+		"auth_time": true, "nonce": true, "acr": true, "amr": true, "azp": true,
+	}
+
 	// Add additional claims (profile, email, etc.)
 	for k, v := range claims {
+		if reservedClaims[k] {
+			return "", fmt.Errorf("cannot override reserved claim: %s", k)
+		}
 		builder.Claim(k, v)
 	}
 
