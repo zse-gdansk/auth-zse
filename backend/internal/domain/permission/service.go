@@ -34,6 +34,25 @@ type ServiceInterface interface {
 
 	// GetPermissionVersion gets the current permission version for a user
 	GetPermissionVersion(userID string) (int, error)
+
+	// BuildServiceScopes builds a map of client_ids (with optional resource) to bitmasks for a service (client)
+	BuildServiceScopes(clientID string) (map[string]uint64, error)
+
+	// GetServicePermission gets a service's permission bitmask for a target service and resource
+	// resource can be empty string for global service permissions
+	GetServicePermission(clientID, targetServiceID, resource string) (uint64, error)
+
+	// GrantServicePermission grants a permission bit to a service for a target service and resource
+	// resource can be empty string for global service permissions
+	GrantServicePermission(clientID, targetServiceID, resource string, bit uint8) error
+
+	// RevokeServicePermission revokes a permission bit from a service for a target service and resource
+	// resource can be empty string for global service permissions
+	RevokeServicePermission(clientID, targetServiceID, resource string, bit uint8) error
+
+	// HasServicePermission checks if a service has a specific permission bit for a target service and resource
+	// resource can be empty string for global service permissions
+	HasServicePermission(clientID, targetServiceID, resource string, bit uint8) (bool, error)
 }
 
 // serviceImpl implements ServiceInterface
@@ -224,4 +243,126 @@ func (s *serviceImpl) GetPermissionVersion(userID string) (int, error) {
 	}
 	// All permissions should have the same version, so return the first one
 	return userPerms[0].PermissionV, nil
+}
+
+// BuildServiceScopes builds a map of client_ids (with optional resource) to bitmasks for a service (client)
+func (s *serviceImpl) BuildServiceScopes(clientID string) (map[string]uint64, error) {
+	servicePerms, err := s.repo.FindServicePermissionsByClientID(clientID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service permissions: %w", err)
+	}
+
+	scopes := make(map[string]uint64)
+	for _, servicePerm := range servicePerms {
+		// Get target service client_id
+		targetService, err := s.serviceRepo.FindByID(servicePerm.TargetServiceID.String())
+		if err != nil {
+			// Skip if service not found
+			continue
+		}
+
+		if servicePerm.Bitmask > 0 {
+			scopeKey := targetService.ClientID
+			if servicePerm.Resource != nil && *servicePerm.Resource != "" {
+				scopeKey = fmt.Sprintf("%s:%s", targetService.ClientID, *servicePerm.Resource)
+			}
+			scopes[scopeKey] = servicePerm.Bitmask
+		}
+	}
+
+	return scopes, nil
+}
+
+// GetServicePermission gets a service's permission bitmask for a target service and resource
+func (s *serviceImpl) GetServicePermission(clientID, targetServiceID, resource string) (uint64, error) {
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	servicePerm, err := s.repo.FindServicePermission(clientID, targetServiceID, resourcePtr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return servicePerm.Bitmask, nil
+}
+
+// GrantServicePermission grants a permission bit to a service for a target service and resource
+func (s *serviceImpl) GrantServicePermission(clientID, targetServiceID, resource string, bit uint8) error {
+	if bit > 63 {
+		return fmt.Errorf("invalid bit position: %d", bit)
+	}
+
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	servicePerm, err := s.repo.FindServicePermission(clientID, targetServiceID, resourcePtr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			targetServiceIDUUID, err := uuid.Parse(targetServiceID)
+			if err != nil {
+				return fmt.Errorf("invalid target service ID: %w", err)
+			}
+
+			servicePerm = &ServicePermission{
+				ClientID:        clientID,
+				TargetServiceID: targetServiceIDUUID,
+				Resource:        resourcePtr,
+				Bitmask:         SetBit(0, bit),
+			}
+			if err := s.repo.CreateServicePermission(servicePerm); err != nil {
+				return fmt.Errorf("failed to create service permission: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to get service permission: %w", err)
+		}
+	} else {
+		servicePerm.Bitmask = SetBit(servicePerm.Bitmask, bit)
+		if err := s.repo.UpdateServicePermission(servicePerm); err != nil {
+			return fmt.Errorf("failed to update service permission: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// RevokeServicePermission revokes a permission bit from a service for a target service and resource
+func (s *serviceImpl) RevokeServicePermission(clientID, targetServiceID, resource string, bit uint8) error {
+	if bit > 63 {
+		return fmt.Errorf("invalid bit position: %d", bit)
+	}
+
+	var resourcePtr *string
+	if resource != "" {
+		resourcePtr = &resource
+	}
+
+	servicePerm, err := s.repo.FindServicePermission(clientID, targetServiceID, resourcePtr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to get service permission: %w", err)
+	}
+
+	servicePerm.Bitmask = ClearBit(servicePerm.Bitmask, bit)
+	if err := s.repo.UpdateServicePermission(servicePerm); err != nil {
+		return fmt.Errorf("failed to update service permission: %w", err)
+	}
+
+	return nil
+}
+
+// HasServicePermission checks if a service has a specific permission bit for a target service and resource
+func (s *serviceImpl) HasServicePermission(clientID, targetServiceID, resource string, bit uint8) (bool, error) {
+	bitmask, err := s.GetServicePermission(clientID, targetServiceID, resource)
+	if err != nil {
+		return false, err
+	}
+	return HasBit(bitmask, bit), nil
 }

@@ -44,6 +44,9 @@ func OpenIDConfigurationHandler(domain string) fiber.Handler {
 			"response_types_supported": []string{"code"},
 			"grant_types_supported": []string{
 				"authorization_code",
+				"refresh_token",
+				"password",
+				"client_credentials",
 			},
 
 			"subject_types_supported":               []string{"public"},
@@ -138,6 +141,28 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 			oidcErr := MapErrorToOIDC(err)
 			if oidcErr.Code == ErrorCodeServerError {
 				slog.Error("Token endpoint error (refresh_token)", "error", err)
+			}
+			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+		}
+		return c.Status(fiber.StatusOK).JSON(res)
+
+	case "client_credentials":
+		res, err := h.service.ClientCredentialsGrant(&req)
+		if err != nil {
+			oidcErr := MapErrorToOIDC(err)
+			if oidcErr.Code == ErrorCodeServerError {
+				slog.Error("Token endpoint error (client_credentials)", "error", err)
+			}
+			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+		}
+		return c.Status(fiber.StatusOK).JSON(res)
+
+	case "password":
+		res, err := h.service.PasswordGrant(&req)
+		if err != nil {
+			oidcErr := MapErrorToOIDC(err)
+			if oidcErr.Code == ErrorCodeServerError {
+				slog.Error("Token endpoint error (password)", "error", err)
 			}
 			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
 		}

@@ -43,6 +43,8 @@ type ServiceInterface interface {
 	Authorize(req *AuthorizeRequest, userID uuid.UUID) (*AuthorizeResponse, error)
 	ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSecret string) (*TokenResponse, error)
 	RefreshToken(req *TokenRequest) (*TokenResponse, error)
+	ClientCredentialsGrant(req *TokenRequest) (*TokenResponse, error)
+	PasswordGrant(req *TokenRequest) (*TokenResponse, error)
 	GetUserInfo(userID string, scopes []string) (map[string]interface{}, error)
 	ValidateAuthorizationRequest(req *AuthorizeRequest) *ValidateAuthorizationRequestResponse
 }
@@ -453,6 +455,195 @@ func (s *Service) RefreshToken(req *TokenRequest) (*TokenResponse, error) {
 		ExpiresIn:    900, // 15 minutes in seconds
 		RefreshToken: fmt.Sprintf("%s:%s", sessionID.String(), newSecret),
 		Scope:        strings.Join(requestedScopes, " "),
+	}, nil
+}
+
+// ClientCredentialsGrant handles the client credentials flow (Machine-to-Machine)
+func (s *Service) ClientCredentialsGrant(req *TokenRequest) (*TokenResponse, error) {
+	if req.GrantType != "client_credentials" {
+		return nil, ErrInvalidGrant
+	}
+
+	// Find service by client_id
+	service, err := s.serviceRepo.FindByClientID(req.ClientID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidClientID
+		}
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Check if service is active
+	if !service.Active {
+		return nil, ErrClientNotActive
+	}
+
+	// Validate client_secret (mandatory for client_credentials)
+	if service.ClientSecret == "" || req.ClientSecret != service.ClientSecret {
+		return nil, ErrInvalidClientSecret
+	}
+
+	// Validate scopes
+	// For client_credentials, scopes must be pre-registered (AllowedScopes)
+	requestedScopes := strings.Fields(req.Scope)
+	if len(requestedScopes) > 0 {
+		if !s.isValidScopes(service.AllowedScopes, requestedScopes) {
+			return nil, ErrInvalidScope
+		}
+	} else {
+		// Default to allowed scopes if none requested
+		requestedScopes = service.AllowedScopes
+	}
+
+	// For Client Credentials, the "user" is the Service itself.
+	// We use the Service ID as the Subject (sub).
+	subject := service.ID.String()
+
+	// Build permissions based on the Service/Client ID
+	// For Client Credentials, the "user" is the Service itself.
+	permissions, err := s.permissionService.BuildServiceScopes(req.ClientID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build service permissions: %w", err)
+	}
+
+	// Client Credentials tokens usually don't have Refresh Tokens.
+
+	accessToken, err := s.authService.GenerateAccessToken(
+		subject,
+		"service-session", // No interactive session
+		requestedScopes,
+		req.ClientID,
+		permissions,
+		1,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	return &TokenResponse{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   3600, // 1 hour
+		Scope:       strings.Join(requestedScopes, " "),
+	}, nil
+}
+
+// PasswordGrant handles the resource owner password credentials flow
+func (s *Service) PasswordGrant(req *TokenRequest) (*TokenResponse, error) {
+	if req.GrantType != "password" {
+		return nil, ErrInvalidGrant
+	}
+
+	if req.Username == "" || req.Password == "" {
+		return nil, ErrInvalidGrant // Missing credentials
+	}
+
+	// Authenticate User
+	u, err := s.userService.FindByUsername(req.Username)
+	if err != nil {
+		// Avoid leaking user existence
+		return nil, ErrInvalidGrant
+	}
+
+	if !s.userService.VerifyPassword(u, req.Password) {
+		return nil, ErrInvalidGrant
+	}
+
+	if !u.IsActive {
+		return nil, ErrInvalidGrant // User disabled
+	}
+
+	// Validate Client
+	service, err := s.serviceRepo.FindByClientID(req.ClientID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidClientID
+		}
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Check if service is active
+	if !service.Active {
+		return nil, ErrClientNotActive
+	}
+
+	// Validate client_secret if provided (and stored)
+	if service.ClientSecret != "" && req.ClientSecret != "" {
+		if service.ClientSecret != req.ClientSecret {
+			return nil, ErrInvalidClientSecret
+		}
+	}
+
+	// Validate Scopes
+	requestedScopes := strings.Fields(req.Scope)
+	if len(requestedScopes) > 0 {
+		if !s.isValidScopes(service.AllowedScopes, requestedScopes) {
+			return nil, ErrInvalidScope
+		}
+	} else {
+		requestedScopes = service.AllowedScopes
+	}
+
+	// Create a new session (Password grant acts like a login)
+	// We don't have userAgent/IP here easily unless passed in request context,
+	// but TokenRequest doesn't have it. We could pass it if we changed signature.
+	// For now, use placeholders or empty.
+	sessionID, secret, err := s.sessionService.Create(u.ID, "password-grant-client", "", 24*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Generate ID Token if openid scope is present
+	var idToken string
+	if slices.Contains(requestedScopes, "openid") {
+		userInfo, err := s.GetUserInfo(u.ID.String(), requestedScopes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user info: %w", err)
+		}
+
+		idToken, err = s.authService.GenerateIDToken(
+			u.ID.String(),
+			req.ClientID,
+			"", // No nonce in password flow
+			time.Now(),
+			userInfo,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate id token: %w", err)
+		}
+	}
+
+	// Permissions
+	permissions, err := s.permissionService.BuildScopes(u.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to build permissions: %w", err)
+	}
+	clientPermissions := s.filterPermissionsForClient(permissions, req.ClientID)
+
+	pver, err := s.permissionService.GetPermissionVersion(u.ID.String())
+	if err != nil {
+		pver = 1
+	}
+
+	accessToken, err := s.authService.GenerateAccessToken(
+		u.ID.String(),
+		sessionID.String(),
+		requestedScopes,
+		req.ClientID,
+		clientPermissions,
+		pver,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900,
+		RefreshToken: fmt.Sprintf("%s:%s", sessionID.String(), secret),
+		Scope:        strings.Join(requestedScopes, " "),
+		IDToken:      idToken,
 	}, nil
 }
 

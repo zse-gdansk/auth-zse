@@ -24,6 +24,13 @@ type Repository interface {
 	UpdateUserPermission(userPerm *UserPermission) error
 	DeleteUserPermission(userID, serviceID string, resource *string) error
 	IncrementPermissionVersion(userID string) error
+
+	// Service Permissions
+	CreateServicePermission(servicePerm *ServicePermission) error
+	FindServicePermission(clientID, targetServiceID string, resource *string) (*ServicePermission, error)
+	FindServicePermissionsByClientID(clientID string) ([]*ServicePermission, error)
+	UpdateServicePermission(servicePerm *ServicePermission) error
+	DeleteServicePermission(clientID, targetServiceID string, resource *string) error
 }
 
 // repository struct for permission operations
@@ -176,4 +183,62 @@ func (r *repository) IncrementPermissionVersion(userID string) error {
 	return r.db.Model(&UserPermission{}).
 		Where("user_id = ?", userID).
 		Update("permission_v", gorm.Expr("permission_v + 1")).Error
+}
+
+// CreateServicePermission creates or updates a service permission
+// On conflict with the unique constraint (client_id, target_service_id, resource),
+// it updates the bitmask.
+func (r *repository) CreateServicePermission(servicePerm *ServicePermission) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "client_id"},
+			{Name: "target_service_id"},
+			{Name: "resource"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{"bitmask", "updated_at"}),
+	}).Create(servicePerm).Error
+}
+
+// FindServicePermission gets a service's permission for a specific target service and resource
+func (r *repository) FindServicePermission(clientID, targetServiceID string, resource *string) (*ServicePermission, error) {
+	var servicePerm ServicePermission
+	query := r.db.Where("client_id = ? AND target_service_id = ?", clientID, targetServiceID)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	if err := query.First(&servicePerm).Error; err != nil {
+		return nil, err
+	}
+	return &servicePerm, nil
+}
+
+// FindServicePermissionsByClientID gets all permissions for a client service
+func (r *repository) FindServicePermissionsByClientID(clientID string) ([]*ServicePermission, error) {
+	var servicePerms []*ServicePermission
+	if err := r.db.Where("client_id = ?", clientID).Find(&servicePerms).Error; err != nil {
+		return nil, err
+	}
+	return servicePerms, nil
+}
+
+// UpdateServicePermission updates a service permission
+func (r *repository) UpdateServicePermission(servicePerm *ServicePermission) error {
+	return r.db.Save(servicePerm).Error
+}
+
+// DeleteServicePermission deletes a service permission (soft delete)
+func (r *repository) DeleteServicePermission(clientID, targetServiceID string, resource *string) error {
+	query := r.db.Where("client_id = ? AND target_service_id = ?", clientID, targetServiceID)
+
+	if resource == nil {
+		query = query.Where("resource IS NULL")
+	} else {
+		query = query.Where("resource = ?", *resource)
+	}
+
+	return query.Delete(&ServicePermission{}).Error
 }

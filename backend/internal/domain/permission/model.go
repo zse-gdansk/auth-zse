@@ -35,6 +35,19 @@ func (UserPermission) TableName() string {
 	return "user_permissions"
 }
 
+// ServicePermission represents a client's (service) combined permissions for another service (target)
+type ServicePermission struct {
+	database.BaseModel
+	ClientID        string    `gorm:"column:client_id;type:varchar(255);not null"`
+	TargetServiceID uuid.UUID `gorm:"column:target_service_id;type:uuid;not null"`
+	Resource        *string   `gorm:"column:resource;size:100"`
+	Bitmask         uint64    `gorm:"column:bitmask;not null;default:0"`
+}
+
+func (ServicePermission) TableName() string {
+	return "service_permissions"
+}
+
 // PermissionResponse represents a safe response for a permission
 type PermissionResponse struct {
 	ID        uuid.UUID `json:"id"`

@@ -17,6 +17,8 @@ var (
 type Service interface {
 	Register(req RegisterRequest) (*User, error)
 	GetUserInfo(userID string) (*User, error)
+	FindByUsername(username string) (*User, error)
+	VerifyPassword(u *User, password string) bool
 }
 
 // service struct for user operations
@@ -69,4 +71,12 @@ func (s *service) Register(req RegisterRequest) (*User, error) {
 
 func (s *service) GetUserInfo(userID string) (*User, error) {
 	return s.repo.FindByID(userID)
+}
+
+func (s *service) FindByUsername(username string) (*User, error) {
+	return s.repo.FindByUsername(username)
+}
+
+func (s *service) VerifyPassword(u *User, password string) bool {
+	return s.repo.VerifyPassword(u, password)
 }

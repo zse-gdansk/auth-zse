@@ -27,7 +27,7 @@ type AuthorizeResponse struct {
 
 // TokenRequest represents the OAuth2 token request
 type TokenRequest struct {
-	GrantType    string `form:"grant_type" validate:"required,oneof=authorization_code refresh_token"`
+	GrantType    string `form:"grant_type" validate:"required,oneof=authorization_code refresh_token password client_credentials"`
 	Code         string `form:"code"`
 	RedirectURI  string `form:"redirect_uri"`
 	ClientID     string `form:"client_id" validate:"required"`
@@ -35,6 +35,8 @@ type TokenRequest struct {
 	CodeVerifier string `form:"code_verifier"`
 	RefreshToken string `form:"refresh_token"`
 	Scope        string `form:"scope"`
+	Username     string `form:"username"`
+	Password     string `form:"password"`
 }
 
 // TokenResponse represents the OAuth2 token response
