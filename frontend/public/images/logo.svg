@@ -1,6 +1,6 @@
 <svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4501 4500" width="64" height="64">
 	<style>
-		.s0 { fill: #3f93d0 } 
+		.s0 { fill: #ffffff } 
 	</style>
 	<filter id="f0">
 		<feFlood flood-color="#ffffff" flood-opacity="1" />
