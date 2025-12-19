@@ -414,6 +414,9 @@ func (s *Service) RefreshToken(req *TokenRequest) (*TokenResponse, error) {
 	}
 
 	userID, err := uuid.Parse(sess.UserID)
+	if err != nil {
+		return nil, ErrInvalidGrant
+	}
 
 	// Rotate session (Refresh Token Rotation)
 	// We use a default TTL of 7 days (168 hours) for refreshed sessions
