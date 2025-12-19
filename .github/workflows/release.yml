@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.25.4'
-          cache-dependency-path: go.sum
+          cache-dependency-path: backend/go.sum
 
       - name: Determine version
         id: version
@@ -75,17 +75,18 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build binary
+        working-directory: backend
         run: |
           go build -ldflags "\
-            -X github.com/Anvoria/authly/cmd.Version=${{ steps.version.outputs.version }} \
-            -X github.com/Anvoria/authly/cmd.BuildTime=${{ steps.build_time.outputs.build_time }} \
-            -X github.com/Anvoria/authly/cmd.GitCommit=${{ steps.git_commit.outputs.git_commit }}" \
+            -X main.Version=${{ steps.version.outputs.version }} \
+            -X main.BuildTime=${{ steps.build_time.outputs.build_time }} \
+            -X main.GitCommit=${{ steps.git_commit.outputs.git_commit }}" \
             -o bin/authly ./cmd/main.go
 
       - name: Create release archive
         run: |
           mkdir -p release
-          cp bin/authly release/authly
+          cp backend/bin/authly release/authly
           tar -czf release/authly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz -C release authly
           rm -rf release/authly
 
