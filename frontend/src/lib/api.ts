@@ -149,8 +149,8 @@ export async function validateAuthorizationRequest(
     if (!response.success) {
         return {
             valid: false,
-            error: "server_error",
-            error_description: response.error || "Failed to validate authorization request",
+            error: response.error || "server_error",
+            error_description: response.errorDescription ?? "Failed to validate authorization request",
         };
     }
 

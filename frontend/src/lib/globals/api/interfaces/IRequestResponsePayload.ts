@@ -56,6 +56,7 @@ type IRequestResponsePayload<D = unknown, E = unknown> =
           readonly redirectUrl: string;
           readonly rawResponse: AxiosResponse<unknown>;
           readonly error?: never;
+          readonly errorDescription?: never;
           readonly rawError?: never;
       };
 
