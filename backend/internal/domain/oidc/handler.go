@@ -337,6 +337,7 @@ func (h *Handler) ConfirmAuthorization(c *fiber.Ctx) error {
 		RedirectURI:         req.RedirectURI,
 		Scope:               req.Scope,
 		State:               req.State,
+		Nonce:               req.Nonce,
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 	}
