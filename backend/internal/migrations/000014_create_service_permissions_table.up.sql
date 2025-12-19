@@ -5,7 +5,7 @@ CREATE TABLE service_permissions (
     deleted_at TIMESTAMP WITH TIME ZONE,
     client_id VARCHAR(255) NOT NULL,
     target_service_id UUID NOT NULL,
-    resource TEXT DEFAULT '',
+    resource TEXT,
     bitmask NUMERIC(20) DEFAULT 0,
     CONSTRAINT fk_service_permissions_client FOREIGN KEY (client_id) REFERENCES services(client_id) ON DELETE CASCADE,
     CONSTRAINT fk_service_permissions_target FOREIGN KEY (target_service_id) REFERENCES services(id) ON DELETE CASCADE,
