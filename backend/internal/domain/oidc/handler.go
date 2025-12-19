@@ -87,27 +87,11 @@ func (h *Handler) Authorize(c *fiber.Ctx) error {
 	// Call service
 	res, err := h.service.Authorize(&req, userID)
 	if err != nil {
-		switch err {
-		case ErrInvalidClientID:
-			return utils.ErrorResponse(c, "invalid_client_id", fiber.StatusBadRequest)
-		case ErrInvalidRedirectURI:
-			return utils.ErrorResponse(c, "invalid_redirect_uri", fiber.StatusBadRequest)
-		case ErrInvalidScope:
-			return utils.ErrorResponse(c, "invalid_scope", fiber.StatusBadRequest)
-		case ErrInvalidResponseType:
-			return utils.ErrorResponse(c, "unsupported_response_type", fiber.StatusBadRequest)
-		case ErrInvalidCodeChallenge:
-			return utils.ErrorResponse(c, "invalid_code_challenge", fiber.StatusBadRequest)
-		case ErrInvalidCodeChallengeMethod:
-			return utils.ErrorResponse(c, "unsupported_code_challenge_method", fiber.StatusBadRequest)
-		case ErrClientNotActive:
-			return utils.ErrorResponse(c, "client_not_active", fiber.StatusBadRequest)
-		case ErrUnauthorizedClient:
-			return utils.ErrorResponse(c, "unauthorized_client", fiber.StatusBadRequest)
-		default:
+		oidcErr := MapErrorToOIDC(err)
+		if oidcErr.Code == ErrorCodeServerError {
 			slog.Error("Authorize endpoint error", "error", err)
-			return utils.ErrorResponse(c, "server_error", fiber.StatusInternalServerError)
 		}
+		return utils.ErrorResponse(c, oidcErr.Code, oidcErr.StatusCode)
 	}
 
 	// Redirect to redirect_uri with code and state
@@ -177,23 +161,11 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 	// Call service with existing session
 	res, err := h.service.ExchangeCode(&req, sessionID, refreshSecret)
 	if err != nil {
-		switch err {
-		case ErrInvalidGrant:
-			return utils.OIDCErrorResponse(c, "invalid_grant", "The provided grant is invalid")
-		case ErrInvalidCode:
-			return utils.OIDCErrorResponse(c, "invalid_grant", "The provided authorization code is invalid, expired, or already used", fiber.StatusBadRequest)
-		case ErrInvalidClientID:
-			return utils.OIDCErrorResponse(c, "invalid_client", "Invalid client_id")
-		case ErrInvalidRedirectURI:
-			return utils.OIDCErrorResponse(c, "invalid_grant", "redirect_uri mismatch")
-		case ErrInvalidCodeVerifier:
-			return utils.OIDCErrorResponse(c, "invalid_grant", "code_verifier is invalid")
-		case ErrInvalidClientSecret:
-			return utils.OIDCErrorResponse(c, "invalid_client", "Invalid client_secret")
-		default:
+		oidcErr := MapErrorToOIDC(err)
+		if oidcErr.Code == ErrorCodeServerError {
 			slog.Error("Token endpoint error", "error", err)
-			return utils.OIDCErrorResponse(c, "server_error", "internal_server_error", fiber.StatusInternalServerError)
 		}
+		return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(res)
@@ -319,42 +291,14 @@ func (h *Handler) ConfirmAuthorization(c *fiber.Ctx) error {
 	// Call service to authorize
 	res, err := h.service.Authorize(authorizeReq, userID)
 	if err != nil {
-		var errorCode string
-		var errorDesc string
-		switch err {
-		case ErrInvalidClientID:
-			errorCode = "invalid_client"
-			errorDesc = "Invalid client_id"
-		case ErrInvalidRedirectURI:
-			errorCode = "invalid_redirect_uri"
-			errorDesc = "The redirect_uri is not allowed for this client"
-		case ErrInvalidScope:
-			errorCode = "invalid_scope"
-			errorDesc = "One or more requested scopes are not allowed"
-		case ErrInvalidResponseType:
-			errorCode = "unsupported_response_type"
-			errorDesc = "Only 'code' response_type is supported"
-		case ErrInvalidCodeChallenge:
-			errorCode = "invalid_code_challenge"
-			errorDesc = "Invalid code_challenge format"
-		case ErrInvalidCodeChallengeMethod:
-			errorCode = "unsupported_code_challenge_method"
-			errorDesc = "Only 'S256' code_challenge_method is supported"
-		case ErrClientNotActive:
-			errorCode = "unauthorized_client"
-			errorDesc = "Client is not active"
-		case ErrUnauthorizedClient:
-			errorCode = "unauthorized_client"
-			errorDesc = "Client is not authorized"
-		default:
+		oidcErr := MapErrorToOIDC(err)
+		if oidcErr.Code == ErrorCodeServerError {
 			slog.Error("ConfirmAuthorization endpoint error", "error", err)
-			errorCode = "server_error"
-			errorDesc = "internal_server_error"
 		}
 		return c.Status(fiber.StatusOK).JSON(&ConfirmAuthorizationResponse{
 			Success:          false,
-			Error:            errorCode,
-			ErrorDescription: errorDesc,
+			Error:            oidcErr.Code,
+			ErrorDescription: oidcErr.Description,
 		})
 	}
 
