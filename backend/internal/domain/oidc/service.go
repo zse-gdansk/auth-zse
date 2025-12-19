@@ -43,6 +43,7 @@ type ClientInfo struct {
 type ServiceInterface interface {
 	Authorize(req *AuthorizeRequest, userID uuid.UUID) (*AuthorizeResponse, error)
 	ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSecret string) (*TokenResponse, error)
+	RefreshToken(req *TokenRequest) (*TokenResponse, error)
 	GetUserInfo(userID string, scopes []string) (map[string]interface{}, error)
 	ValidateAuthorizationRequest(req *AuthorizeRequest) *ValidateAuthorizationRequestResponse
 }
@@ -319,8 +320,123 @@ func (s *Service) ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSe
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    900, // 15 minutes in seconds
-		RefreshToken: refreshSecret,
+		RefreshToken: fmt.Sprintf("%s:%s", sessionID.String(), refreshSecret),
 		Scope:        authCode.Scopes,
+	}, nil
+}
+
+// RefreshToken refreshes the access token using a refresh token
+func (s *Service) RefreshToken(req *TokenRequest) (*TokenResponse, error) {
+	// Validate grant_type
+	if req.GrantType != "refresh_token" {
+		return nil, ErrInvalidGrant
+	}
+
+	// Parse refresh_token (format: sessionID:secret)
+	parts := strings.SplitN(req.RefreshToken, ":", 2)
+	if len(parts) != 2 {
+		return nil, ErrInvalidGrant
+	}
+	sessionIDStr := parts[0]
+	refreshSecret := parts[1]
+
+	sessionID, err := uuid.Parse(sessionIDStr)
+	if err != nil {
+		return nil, ErrInvalidGrant
+	}
+
+	// Find service by client_id
+	service, err := s.serviceRepo.FindByClientID(req.ClientID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidClientID
+		}
+		return nil, fmt.Errorf("failed to find service: %w", err)
+	}
+
+	// Check if service is active
+	if !service.Active {
+		return nil, ErrClientNotActive
+	}
+
+	// Validate client_secret if provided
+	if service.ClientSecret != "" && req.ClientSecret != "" {
+		if service.ClientSecret != req.ClientSecret {
+			return nil, ErrInvalidClientSecret
+		}
+	}
+
+	// Validate scopes
+	var requestedScopes []string
+	if req.Scope != "" {
+		requestedScopes = strings.Fields(req.Scope)
+		if !s.isValidScopes(service.AllowedScopes, requestedScopes) {
+			return nil, ErrInvalidScope
+		}
+	} else {
+		// If no scope is requested, default to all allowed scopes for the client
+		// This is a simplification; ideally we should persist granted scopes
+		requestedScopes = service.AllowedScopes
+	}
+
+	// Validate session first to get UserID
+	sess, err := s.sessionService.Validate(sessionID, refreshSecret)
+	if err != nil {
+		if errors.Is(err, session.ErrInvalidSession) || errors.Is(err, session.ErrInvalidSecret) || errors.Is(err, session.ErrExpiredSession) {
+			return nil, ErrInvalidGrant
+		}
+		return nil, fmt.Errorf("failed to validate session: %w", err)
+	}
+
+	userID, err := uuid.Parse(sess.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id in session")
+	}
+
+	// Rotate session (Refresh Token Rotation)
+	// We use a default TTL of 7 days (168 hours) for refreshed sessions
+	newSecret, err := s.sessionService.Rotate(sessionID, refreshSecret, 168*time.Hour)
+	if err != nil {
+		if errors.Is(err, session.ErrReplayDetected) {
+			// Revoke session if replay detected
+			_ = s.sessionService.Revoke(sessionID)
+			return nil, ErrInvalidGrant
+		}
+		return nil, ErrInvalidGrant
+	}
+
+	permissions, err := s.permissionService.BuildScopes(userID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to build permissions: %w", err)
+	}
+
+	clientPermissions := s.filterPermissionsForClient(permissions, req.ClientID)
+
+	pver, err := s.permissionService.GetPermissionVersion(userID.String())
+	if err != nil {
+		pver = 1
+	}
+
+	audience := req.ClientID
+
+	accessToken, err := s.authService.GenerateAccessToken(
+		userID.String(),
+		sessionID.String(),
+		requestedScopes,
+		audience,
+		clientPermissions,
+		pver,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	return &TokenResponse{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes in seconds
+		RefreshToken: fmt.Sprintf("%s:%s", sessionID.String(), newSecret),
+		Scope:        strings.Join(requestedScopes, " "),
 	}, nil
 }
 

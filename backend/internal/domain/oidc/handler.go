@@ -119,18 +119,36 @@ func (h *Handler) Token(c *fiber.Ctx) error {
 		return utils.OIDCErrorResponse(c, "invalid_request", "malformed request body")
 	}
 
-	// Validate required fields
+	// Validate common required fields
 	if req.GrantType == "" {
 		return utils.OIDCErrorResponse(c, "invalid_request", "grant_type is required")
 	}
+	if req.ClientID == "" {
+		return utils.OIDCErrorResponse(c, "invalid_request", "client_id is required")
+	}
+
+	if req.GrantType == "refresh_token" {
+		if req.RefreshToken == "" {
+			return utils.OIDCErrorResponse(c, "invalid_request", "refresh_token is required")
+		}
+
+		res, err := h.service.RefreshToken(&req)
+		if err != nil {
+			oidcErr := MapErrorToOIDC(err)
+			if oidcErr.Code == ErrorCodeServerError {
+				slog.Error("Token endpoint error (refresh_token)", "error", err)
+			}
+			return utils.OIDCErrorResponse(c, oidcErr.Code, oidcErr.Description, oidcErr.StatusCode)
+		}
+		return c.Status(fiber.StatusOK).JSON(res)
+	}
+
+	// Default to authorization_code flow
 	if req.Code == "" {
 		return utils.OIDCErrorResponse(c, "invalid_request", "code is required")
 	}
 	if req.RedirectURI == "" {
 		return utils.OIDCErrorResponse(c, "invalid_request", "redirect_uri is required")
-	}
-	if req.ClientID == "" {
-		return utils.OIDCErrorResponse(c, "invalid_request", "client_id is required")
 	}
 
 	// Get session from cookie
