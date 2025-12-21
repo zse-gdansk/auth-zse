@@ -25,9 +25,10 @@ func (Permission) TableName() string {
 type UserPermission struct {
 	database.BaseModel
 	UserID      uuid.UUID `gorm:"column:user_id;type:uuid;not null"`
-	ServiceID   uuid.UUID `gorm:"column:service_id;type:uuid;not null"`
-	Resource    *string   `gorm:"column:resource;size:100"`
-	Bitmask     uint64    `gorm:"column:bitmask;not null;default:0"`
+	ServiceID   uuid.UUID  `gorm:"column:service_id;type:uuid;not null"`
+	RoleID      *uuid.UUID `gorm:"column:role_id;type:uuid"`
+	Resource    *string    `gorm:"column:resource;size:100"`
+	Bitmask     uint64     `gorm:"column:bitmask;not null;default:0"`
 	PermissionV int       `gorm:"column:permission_v;not null;default:1"`
 }
 
