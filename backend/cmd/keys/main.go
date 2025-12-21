@@ -219,7 +219,7 @@ func listKeys(keysPath, activeKID string) {
 		}
 
 		// Get key size from raw key
-		var rawKey interface{}
+		var rawKey any
 		if err := jwk.Export(key, &rawKey); err == nil {
 			if rsaKey, ok := rawKey.(*rsa.PublicKey); ok {
 				fmt.Printf("  %s%s\n", kid, active)

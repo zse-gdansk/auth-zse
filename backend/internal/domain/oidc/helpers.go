@@ -54,7 +54,7 @@ func (s *Service) filterPermissionsForClient(allPermissions map[string]uint64, c
 
 // GetUserInfo returns user information based on requested scopes
 // Only returns claims that are allowed by the scopes
-func (s *Service) GetUserInfo(userID string, scopes []string) (map[string]interface{}, error) {
+func (s *Service) GetUserInfo(userID string, scopes []string) (map[string]any, error) {
 	u, err := s.userService.GetUserInfo(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
