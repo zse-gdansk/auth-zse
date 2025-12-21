@@ -10,6 +10,7 @@ import (
 
 	"github.com/Anvoria/authly/internal/cache"
 	"github.com/Anvoria/authly/internal/domain/permission"
+	"github.com/Anvoria/authly/internal/domain/role"
 	"github.com/Anvoria/authly/internal/domain/session"
 	"github.com/Anvoria/authly/internal/domain/user"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -35,17 +36,19 @@ type Service struct {
 	Users             user.Repository
 	Sessions          session.Service
 	PermissionService permission.ServiceInterface
+	RoleService       role.Service
 	KeyStore          *KeyStore
 	issuer            string
 	revocationCache   *cache.TokenRevocationCache
 }
 
 // NewService constructs a Service configured with the provided user repository, session service, permission service, key store, issuer, and revocation cache.
-func NewService(users user.Repository, sessions session.Service, permService permission.ServiceInterface, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
+func NewService(users user.Repository, sessions session.Service, permService permission.ServiceInterface, roleService role.Service, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
 	return &Service{
 		Users:             users,
 		Sessions:          sessions,
 		PermissionService: permService,
+		RoleService:       roleService,
 		KeyStore:          keyStore,
 		issuer:            issuer,
 		revocationCache:   revocationCache,
@@ -203,6 +206,15 @@ func (s *Service) Register(req user.RegisterRequest) (*user.UserResponse, error)
 
 	if err := s.Users.Create(newUser); err != nil {
 		return nil, err
+	}
+
+	// Assign default roles
+	if s.RoleService != nil {
+		if err := s.RoleService.AssignDefaultRoles(newUser.ID.String()); err != nil {
+			slog.Error("Failed to assign default roles", "error", err, "user_id", newUser.ID)
+			s.Users.Delete(newUser.ID.String())
+			return nil, fmt.Errorf("failed to assign default roles: %w", err)
+		}
 	}
 
 	return newUser.ToResponse(), nil
