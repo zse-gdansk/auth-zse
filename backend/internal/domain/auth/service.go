@@ -92,7 +92,7 @@ func (s *Service) GenerateAccessToken(sub, sid string, scopes []string, audience
 }
 
 // GenerateIDToken generates an OIDC-compliant ID token
-func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Time, claims map[string]interface{}) (string, error) {
+func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Time, claims map[string]any) (string, error) {
 	now := time.Now()
 	exp := now.Add(1 * time.Hour)
 

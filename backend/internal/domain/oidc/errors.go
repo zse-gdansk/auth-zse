@@ -18,6 +18,7 @@ const (
 	ErrorCodeLoginRequired           = "login_required"
 	ErrorCodeInvalidRequestURI       = "invalid_request_uri"
 	ErrorCodeInteractionRequired     = "interaction_required"
+	ErrorCodeAccessDenied            = "access_denied"
 )
 
 var (
@@ -29,6 +30,9 @@ var (
 
 	// ErrInvalidScope is returned when the requested scope is invalid, unknown, or malformed.
 	ErrInvalidScope = errors.New("invalid_scope")
+
+	// ErrUserAccessDenied is returned when the user does not have permission to access the client/service.
+	ErrUserAccessDenied = errors.New("user_access_denied")
 
 	// ErrInvalidResponseType is returned when the response_type is not supported by the authorization server.
 	ErrInvalidResponseType = errors.New("unsupported_response_type")
@@ -73,7 +77,8 @@ type OIDCError struct {
 
 // MapErrorToOIDC maps an internal domain error to a standardized OIDC protocol error.
 // MapErrorToOIDC maps internal domain errors to their corresponding OIDC error responses.
-// It returns an OIDCError containing the standard OIDC error code, a client-facing description, and an HTTP status code; unrecognized errors map to `server_error` with HTTP 500.
+// MapErrorToOIDC maps an internal domain error to a standardized OIDC protocol error.
+// It returns an OIDCError with the OIDC error code, a client-facing description, and the corresponding HTTP status; unrecognized errors map to ErrorCodeServerError with HTTP 500.
 func MapErrorToOIDC(err error) OIDCError {
 	switch err {
 	case ErrInvalidClientID:
@@ -102,6 +107,8 @@ func MapErrorToOIDC(err error) OIDCError {
 		return OIDCError{Code: ErrorCodeInvalidGrant, Description: "code_verifier is invalid", StatusCode: http.StatusBadRequest}
 	case ErrInvalidClientSecret:
 		return OIDCError{Code: ErrorCodeInvalidClient, Description: "Invalid client_secret", StatusCode: http.StatusUnauthorized}
+	case ErrUserAccessDenied:
+		return OIDCError{Code: ErrorCodeAccessDenied, Description: "User is not authorized to access this service", StatusCode: http.StatusForbidden}
 	default:
 		return OIDCError{Code: ErrorCodeServerError, Description: "internal_server_error", StatusCode: http.StatusInternalServerError}
 	}
