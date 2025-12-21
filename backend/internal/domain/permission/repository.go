@@ -21,6 +21,7 @@ type Repository interface {
 	CreateUserPermission(userPerm *UserPermission) error
 	FindUserPermission(userID, serviceID string, resource *string) (*UserPermission, error)
 	FindUserPermissionsByUserID(userID string) ([]*UserPermission, error)
+	FindUserPermissionsByUserIDAndServiceID(userID, serviceID string) ([]*UserPermission, error)
 	UpdateUserPermission(userPerm *UserPermission) error
 	DeleteUserPermission(userID, serviceID string, resource *string) error
 	IncrementPermissionVersion(userID string) error
@@ -154,6 +155,15 @@ func (r *repository) FindUserPermission(userID, serviceID string, resource *stri
 func (r *repository) FindUserPermissionsByUserID(userID string) ([]*UserPermission, error) {
 	var userPerms []*UserPermission
 	if err := r.db.Where("user_id = ?", userID).Find(&userPerms).Error; err != nil {
+		return nil, err
+	}
+	return userPerms, nil
+}
+
+// FindUserPermissionsByUserIDAndServiceID gets all permissions for a user for a specific service
+func (r *repository) FindUserPermissionsByUserIDAndServiceID(userID, serviceID string) ([]*UserPermission, error) {
+	var userPerms []*UserPermission
+	if err := r.db.Where("user_id = ? AND service_id = ?", userID, serviceID).Find(&userPerms).Error; err != nil {
 		return nil, err
 	}
 	return userPerms, nil

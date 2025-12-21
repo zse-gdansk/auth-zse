@@ -29,6 +29,9 @@ type ServiceInterface interface {
 	// resource can be empty string for global service permissions
 	HasPermission(userID, serviceID, resource string, bit uint8) (bool, error)
 
+	// HasAnyPermission checks if a user has any permission for a service (across all resources)
+	HasAnyPermission(userID, serviceID string) (bool, error)
+
 	// IncrementPermissionVersion increments permission version (invalidates tokens)
 	IncrementPermissionVersion(userID string) error
 
@@ -225,6 +228,22 @@ func (s *serviceImpl) HasPermission(userID, serviceID, resource string, bit uint
 		return false, err
 	}
 	return HasBit(bitmask, bit), nil
+}
+
+// HasAnyPermission checks if a user has any permission for a service (across all resources)
+func (s *serviceImpl) HasAnyPermission(userID, serviceID string) (bool, error) {
+	userPerms, err := s.repo.FindUserPermissionsByUserIDAndServiceID(userID, serviceID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, perm := range userPerms {
+		if perm.Bitmask > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // IncrementPermissionVersion increments permission version (invalidates tokens)

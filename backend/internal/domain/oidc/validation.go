@@ -11,7 +11,7 @@ import (
 
 // ValidateAuthorizationRequest validates an OAuth2/OIDC authorization request without requiring authentication
 // Returns a response indicating if the request is valid and includes client information if valid
-func (s *Service) ValidateAuthorizationRequest(req *AuthorizeRequest) *ValidateAuthorizationRequestResponse {
+func (s *Service) ValidateAuthorizationRequest(req *AuthorizeRequest, userID *string) *ValidateAuthorizationRequestResponse {
 	// Validate response_type
 	if req.ResponseType == "" {
 		return &ValidateAuthorizationRequestResponse{
@@ -67,6 +67,32 @@ func (s *Service) ValidateAuthorizationRequest(req *AuthorizeRequest) *ValidateA
 				AllowedScopes: service.AllowedScopes,
 				Active:        service.Active,
 			},
+		}
+	}
+
+	// Check if user has permissions (if user context is available)
+	if userID != nil {
+		hasPerm, err := s.permissionService.HasAnyPermission(*userID, service.ID.String())
+		if err != nil {
+			return &ValidateAuthorizationRequestResponse{
+				Valid:            false,
+				Error:            "server_error",
+				ErrorDescription: "Failed to check user permissions",
+			}
+		}
+		if !hasPerm {
+			return &ValidateAuthorizationRequestResponse{
+				Valid:            false,
+				Error:            "access_denied",
+				ErrorDescription: "User is not authorized to access this service",
+				Client: &ClientInfo{
+					ID:            service.ID.String(),
+					Name:          service.Name,
+					RedirectURIs:  service.RedirectURIs,
+					AllowedScopes: service.AllowedScopes,
+					Active:        service.Active,
+				},
+			}
 		}
 	}
 

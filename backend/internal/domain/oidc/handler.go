@@ -268,7 +268,13 @@ func (h *Handler) ValidateAuthorization(c *fiber.Ctx) error {
 		})
 	}
 
-	res := h.service.ValidateAuthorizationRequest(&req)
+	var userID *string
+	if identity, ok := c.Locals(auth.IdentityKey).(*auth.Identity); ok && identity != nil {
+		uid := identity.UserID
+		userID = &uid
+	}
+
+	res := h.service.ValidateAuthorizationRequest(&req, userID)
 	return c.Status(fiber.StatusOK).JSON(res)
 }
 

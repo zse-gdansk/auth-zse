@@ -91,6 +91,15 @@ func (s *Service) ExchangeCode(req *TokenRequest, sessionID uuid.UUID, refreshSe
 		return nil, fmt.Errorf("session user mismatch: session belongs to different user")
 	}
 
+	// Check if user has any permissions for this service
+	hasPerm, err := s.permissionService.HasAnyPermission(authCode.UserID.String(), service.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user permissions: %w", err)
+	}
+	if !hasPerm {
+		return nil, ErrUserAccessDenied
+	}
+
 	// Mark code as used
 	if err := s.codeRepo.MarkAsUsed(req.Code); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -230,6 +239,15 @@ func (s *Service) RefreshToken(req *TokenRequest) (*TokenResponse, error) {
 	userID, err := uuid.Parse(sess.UserID)
 	if err != nil {
 		return nil, ErrInvalidGrant
+	}
+
+	// Check if user still has permissions for this service
+	hasPerm, err := s.permissionService.HasAnyPermission(userID.String(), service.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user permissions: %w", err)
+	}
+	if !hasPerm {
+		return nil, ErrUserAccessDenied
 	}
 
 	// Rotate session (Refresh Token Rotation)
@@ -403,6 +421,15 @@ func (s *Service) PasswordGrant(req *TokenRequest) (*TokenResponse, error) {
 		}
 	} else {
 		requestedScopes = service.AllowedScopes
+	}
+
+	// Check if user has any permissions for this service
+	hasPerm, err := s.permissionService.HasAnyPermission(u.ID.String(), service.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user permissions: %w", err)
+	}
+	if !hasPerm {
+		return nil, ErrUserAccessDenied
 	}
 
 	// Create a new session (Password grant acts like a login)

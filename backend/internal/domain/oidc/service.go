@@ -40,8 +40,8 @@ type ServiceInterface interface {
 	RefreshToken(req *TokenRequest) (*TokenResponse, error)
 	ClientCredentialsGrant(req *TokenRequest) (*TokenResponse, error)
 	PasswordGrant(req *TokenRequest) (*TokenResponse, error)
-	GetUserInfo(userID string, scopes []string) (map[string]interface{}, error)
-	ValidateAuthorizationRequest(req *AuthorizeRequest) *ValidateAuthorizationRequestResponse
+	GetUserInfo(userID string, scopes []string) (map[string]any, error)
+	ValidateAuthorizationRequest(req *AuthorizeRequest, userID *string) *ValidateAuthorizationRequestResponse
 }
 
 // Service handles OIDC operations
@@ -99,6 +99,16 @@ func (s *Service) Authorize(req *AuthorizeRequest, userID uuid.UUID) (*Authorize
 	requestedScopes := strings.Fields(req.Scope)
 	if !s.isValidScopes(service.AllowedScopes, requestedScopes) {
 		return nil, ErrInvalidScope
+	}
+
+	// Check if user has any permissions for this service
+	// If no permissions are found, deny access
+	hasPerm, err := s.permissionService.HasAnyPermission(userID.String(), service.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user permissions: %w", err)
+	}
+	if !hasPerm {
+		return nil, ErrUserAccessDenied
 	}
 
 	// Validate PKCE if provided
