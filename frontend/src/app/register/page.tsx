@@ -10,6 +10,7 @@ import { registerFormSchema, registerRequestSchema, type RegisterFormData } from
 import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
 import { useRegister, useMe } from "@/authly/lib/hooks/useAuth";
+import { CheckCircle } from "lucide-react";
 
 /**
  * Renders the registration page UI, manages form state and validation, submits registration requests, and redirects on success or when already authenticated.
@@ -31,14 +32,16 @@ function RegisterPageContent() {
     });
     const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormData, string>>>({});
     const [apiError, setApiError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const isRedirectingRef = useRef(false);
 
     const { data: meResponse, isLoading: isCheckingAuth } = useMe();
     const registerMutation = useRegister();
 
-    const isRedirectingRef = useRef(false);
-
     useEffect(() => {
-        if (meResponse?.success && !isRedirectingRef.current) {
+        if (meResponse?.success && !successMessage) {
+            if (isRedirectingRef.current) return;
+
             const oidcParams = searchParams.get("oidc_params");
             if (oidcParams) {
                 isRedirectingRef.current = true;
@@ -75,7 +78,7 @@ function RegisterPageContent() {
                 router.push("/");
             }
         }
-    }, [meResponse, router, searchParams]);
+    }, [meResponse, router, searchParams, successMessage]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,6 +117,12 @@ function RegisterPageContent() {
             onSuccess: (response) => {
                 if (!response.success) {
                     setApiError(response.error || "Registration failed");
+                } else {
+                    setSuccessMessage("Account created successfully! Redirecting to login...");
+                    setTimeout(() => {
+                        const params = searchParams.toString();
+                        router.push("/login" + (params ? `?${params}` : ""));
+                    }, 2000);
                 }
             },
             onError: (err) => {
@@ -159,80 +168,92 @@ function RegisterPageContent() {
                     <p className="text-sm text-white/60">Sign up to get started</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
+                {successMessage ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
+                        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                            <CheckCircle className="w-8 h-8 text-green-500" />
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-white font-medium">Account created successfully!</p>
+                            <p className="text-sm text-white/40">Redirecting you to the login page...</p>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                label="First Name"
+                                type="text"
+                                placeholder="John"
+                                value={formData.first_name}
+                                onChange={(e) => updateField("first_name", e.target.value)}
+                                disabled={isLoading}
+                                error={errors.first_name}
+                            />
+
+                            <Input
+                                label="Last Name"
+                                type="text"
+                                placeholder="Doe"
+                                value={formData.last_name}
+                                onChange={(e) => updateField("last_name", e.target.value)}
+                                disabled={isLoading}
+                                error={errors.last_name}
+                            />
+                        </div>
+
                         <Input
-                            label="First Name"
-                            type="text"
-                            placeholder="John"
-                            value={formData.first_name}
-                            onChange={(e) => updateField("first_name", e.target.value)}
+                            label="Email"
+                            type="email"
+                            placeholder="name@example.com"
+                            value={formData.email}
+                            onChange={(e) => updateField("email", e.target.value)}
                             disabled={isLoading}
-                            error={errors.first_name}
+                            error={errors.email}
                         />
 
                         <Input
-                            label="Last Name"
+                            label="Username"
                             type="text"
-                            placeholder="Doe"
-                            value={formData.last_name}
-                            onChange={(e) => updateField("last_name", e.target.value)}
+                            placeholder="username"
+                            value={formData.username}
+                            onChange={(e) => updateField("username", e.target.value)}
+                            required
                             disabled={isLoading}
-                            error={errors.last_name}
+                            error={errors.username}
                         />
-                    </div>
 
-                    <Input
-                        label="Email"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={formData.email}
-                        onChange={(e) => updateField("email", e.target.value)}
-                        disabled={isLoading}
-                        error={errors.email}
-                    />
+                        <Input
+                            label="Password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={formData.password}
+                            onChange={(e) => updateField("password", e.target.value)}
+                            required
+                            disabled={isLoading}
+                            error={errors.password}
+                        />
 
-                    <Input
-                        label="Username"
-                        type="text"
-                        placeholder="username"
-                        value={formData.username}
-                        onChange={(e) => updateField("username", e.target.value)}
-                        required
-                        disabled={isLoading}
-                        error={errors.username}
-                    />
+                        <Input
+                            label="Confirm Password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={formData.confirmPassword}
+                            onChange={(e) => updateField("confirmPassword", e.target.value)}
+                            required
+                            disabled={isLoading}
+                            error={errors.confirmPassword}
+                        />
 
-                    <Input
-                        label="Password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => updateField("password", e.target.value)}
-                        required
-                        disabled={isLoading}
-                        error={errors.password}
-                    />
+                        {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
 
-                    <Input
-                        label="Confirm Password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={formData.confirmPassword}
-                        onChange={(e) => updateField("confirmPassword", e.target.value)}
-                        required
-                        disabled={isLoading}
-                        error={errors.confirmPassword}
-                    />
-
-                    {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
-
-                    <div className="pt-1">
-                        <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
-                            {isLoading ? "Creating account..." : "Sign Up"}
-                        </Button>
-                    </div>
-                </form>
+                        <div className="pt-1">
+                            <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
+                                {isLoading ? "Creating account..." : "Sign Up"}
+                            </Button>
+                        </div>
+                    </form>
+                )}
 
                 <div className="pt-2 border-t border-white/5">
                     <p className="text-center text-sm text-white/50 mt-2">
