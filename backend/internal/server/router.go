@@ -10,6 +10,7 @@ import (
 	"github.com/Anvoria/authly/internal/domain/auth"
 	"github.com/Anvoria/authly/internal/domain/oidc"
 	perm "github.com/Anvoria/authly/internal/domain/permission"
+	"github.com/Anvoria/authly/internal/domain/role"
 	svc "github.com/Anvoria/authly/internal/domain/service"
 	"github.com/Anvoria/authly/internal/domain/session"
 	"github.com/Anvoria/authly/internal/domain/user"
@@ -36,6 +37,7 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	sessionRepo := session.NewRepository(database.DB)
 	serviceRepo := svc.NewRepository(database.DB)
 	permissionRepo := perm.NewRepository(database.DB)
+	roleRepo := role.NewRepository(database.DB)
 
 	// Initialize cache
 	serviceCache := cache.NewServiceCache(serviceRepo)
@@ -46,6 +48,7 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	serviceRepoAdapter := perm.NewServiceRepositoryAdapter(serviceRepo)
 	permissionService := perm.NewService(permissionRepo, serviceRepoAdapter)
 	userService := user.NewService(userRepo)
+	roleService := role.NewService(roleRepo, permissionRepo)
 
 	keyStore, err := auth.LoadKeys(cfg.Auth.KeysPath, cfg.Auth.ActiveKID)
 	if err != nil {
@@ -63,7 +66,7 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	issuer := cfg.Server.Domain
 
 	// Initialize auth service
-	authService := auth.NewService(userRepo, sessionService, permissionService, keyStore, issuer, tokenRevocationCache)
+	authService := auth.NewService(userRepo, sessionService, permissionService, roleService, keyStore, issuer, tokenRevocationCache)
 	authHandler := auth.NewHandler(authService, userService)
 
 	// Setup auth routes
