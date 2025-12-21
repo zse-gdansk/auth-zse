@@ -44,7 +44,7 @@ export function useLogin() {
 /**
  * Creates a mutation hook to register a new user and invalidate auth-related queries on success.
  *
- * @returns The React Query mutation result for registering a user. When the registration response has `success` equal to `true`, it invalidates the auth `me` and `status` query keys to trigger refetch. 
+ * @returns The React Query mutation result for registering a user. When the registration response has `success` equal to `true`, it invalidates the auth `me` and `status` query keys to trigger refetch.
  */
 export function useRegister() {
     const queryClient = useQueryClient();
