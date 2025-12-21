@@ -1,0 +1,3 @@
+ALTER TABLE user_permissions DROP COLUMN IF EXISTS role_id;
+
+DROP TABLE IF EXISTS roles;
