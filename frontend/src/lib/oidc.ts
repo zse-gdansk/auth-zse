@@ -1,4 +1,6 @@
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { OIDC_CONFIG } from "./config";
+import LocalStorageTokenService from "./globals/client/LocalStorageTokenService";
 
 export interface ValidationError {
     error: string;
@@ -218,6 +220,33 @@ export async function generateCodeChallenge(codeVerifier: string): Promise<strin
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
         .replace(/=+$/, "");
+}
+
+/**
+ * Initiates the OpenID Connect (OIDC) Authorization Code flow with Proof Key for Code Exchange (PKCE).
+ *
+ *
+ * @returns Promise that resolves when the redirect is initiated. The function never returns
+ *          normally as it performs a window location redirect.
+ */
+export async function loginWithRedirect(): Promise<void> {
+    const state = generateCodeVerifier(32);
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    LocalStorageTokenService.setOidcCodeVerifier(codeVerifier);
+
+    const params = new URLSearchParams({
+        client_id: OIDC_CONFIG.client_id,
+        redirect_uri: OIDC_CONFIG.redirect_uri,
+        response_type: OIDC_CONFIG.response_type,
+        scope: OIDC_CONFIG.scope,
+        state: state,
+        code_challenge: codeChallenge,
+        code_challenge_method: "s256",
+    });
+
+    redirectToAuthorize(params.toString());
 }
 
 /**
