@@ -49,7 +49,7 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	serviceRepoAdapter := perm.NewServiceRepositoryAdapter(serviceRepo)
 	permissionService := perm.NewService(permissionRepo, serviceRepoAdapter)
 	userService := user.NewService(userRepo)
-	roleService := role.NewService(roleRepo, permissionRepo)
+	roleService := role.NewService(database.DB, roleRepo, permissionRepo)
 
 	keyStore, err := auth.LoadKeys(cfg.Auth.KeysPath, cfg.Auth.ActiveKID)
 	if err != nil {

@@ -1,6 +1,8 @@
 package role
 
 import (
+	"fmt"
+
 	"github.com/Anvoria/authly/internal/domain/permission"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -21,13 +23,15 @@ type Service interface {
 }
 
 type service struct {
+	db             *gorm.DB
 	repo           Repository
 	permissionRepo permission.Repository
 }
 
 // NewService creates a new role service
-func NewService(repo Repository, permissionRepo permission.Repository) Service {
+func NewService(db *gorm.DB, repo Repository, permissionRepo permission.Repository) Service {
 	return &service{
+		db:             db,
 		repo:           repo,
 		permissionRepo: permissionRepo,
 	}
@@ -35,18 +39,28 @@ func NewService(repo Repository, permissionRepo permission.Repository) Service {
 
 func (s *service) WithTx(tx *gorm.DB) Service {
 	return &service{
+		db:             tx,
 		repo:           s.repo.WithTx(tx),
 		permissionRepo: s.permissionRepo.WithTx(tx),
 	}
 }
 
 func (s *service) CreateRole(role *Role) error {
-	if role.IsDefault {
-		if err := s.unsetOtherDefaults(role.ServiceID.String(), ""); err != nil {
-			return err
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txService := s.WithTx(tx)
+
+		txSvc, ok := txService.(*service)
+		if !ok {
+			return fmt.Errorf("internal error: failed to cast service")
 		}
-	}
-	return s.repo.Create(role)
+
+		if role.IsDefault {
+			if err := txSvc.unsetOtherDefaults(role.ServiceID.String(), ""); err != nil {
+				return err
+			}
+		}
+		return txSvc.repo.Create(role)
+	})
 }
 
 func (s *service) GetRole(id string) (*Role, error) {
@@ -67,31 +81,37 @@ func (s *service) GetDefaultRole(serviceID string) (*Role, error) {
 
 // UpdateRole updates the role and syncs changes to all assigned users
 func (s *service) UpdateRole(updatedRole *Role) error {
-	// Fetch old role to calculate delta
-	oldRole, err := s.repo.FindByID(updatedRole.ID.String())
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txService := s.WithTx(tx)
+		txSvc, ok := txService.(*service)
+		if !ok {
+			return fmt.Errorf("internal error: failed to cast service")
+		}
 
-	// If is_default changed to true, unset others
-	if updatedRole.IsDefault && !oldRole.IsDefault {
-		if err := s.unsetOtherDefaults(updatedRole.ServiceID.String(), updatedRole.ID.String()); err != nil {
+		oldRole, err := txSvc.repo.FindByID(updatedRole.ID.String())
+		if err != nil {
 			return err
 		}
-	}
 
-	if err := s.repo.Update(updatedRole); err != nil {
-		return err
-	}
+		if updatedRole.IsDefault && !oldRole.IsDefault {
+			if err := txSvc.unsetOtherDefaults(updatedRole.ServiceID.String(), updatedRole.ID.String()); err != nil {
+				return err
+			}
+		}
 
-	addedBits := updatedRole.Bitmask &^ oldRole.Bitmask
-	removedBits := oldRole.Bitmask &^ updatedRole.Bitmask
+		if err := txSvc.repo.Update(updatedRole); err != nil {
+			return err
+		}
 
-	if addedBits == 0 && removedBits == 0 {
-		return nil
-	}
+		addedBits := updatedRole.Bitmask &^ oldRole.Bitmask
+		removedBits := oldRole.Bitmask &^ updatedRole.Bitmask
 
-	return s.propagateRoleChanges(updatedRole.ID.String(), addedBits, removedBits)
+		if addedBits == 0 && removedBits == 0 {
+			return nil
+		}
+
+		return txSvc.propagateRoleChanges(updatedRole.ID.String(), addedBits, removedBits)
+	})
 }
 
 func (s *service) DeleteRole(id string) error {
