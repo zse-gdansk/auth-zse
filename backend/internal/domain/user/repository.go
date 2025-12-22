@@ -19,7 +19,7 @@ type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new user repository
+// NewRepository creates a Repository backed by the provided GORM DB handle.
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db}
 }
