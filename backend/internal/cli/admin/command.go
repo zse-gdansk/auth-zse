@@ -104,6 +104,11 @@ func (c *Command) runInitRoot(args []string) error {
 			Description:  "System management dashboard",
 			ClientID:     svc.DefaultAuthlyClientID,
 			ClientSecret: uuid.New().String(), // Generate random secret
+			AllowedScopes: []string{
+				"openid",
+				"profile",
+				"email",
+			},
 			Active:       true,
 			IsSystem:     true,
 			Domain:       *domain,
@@ -115,7 +120,7 @@ func (c *Command) runInitRoot(args []string) error {
 		}
 	} else {
 		slog.Info("System service already exists, updating configuration if provided...")
-		
+
 		updates := false
 		if *domain != "" && systemService.Domain != *domain {
 			systemService.Domain = *domain
@@ -128,8 +133,9 @@ func (c *Command) runInitRoot(args []string) error {
 
 		if updates {
 			if err := database.DB.Model(systemService).Updates(map[string]any{
-				"domain":        systemService.Domain,
-				"redirect_uris": systemService.RedirectURIs,
+				"domain":         systemService.Domain,
+				"redirect_uris":  systemService.RedirectURIs,
+				"allowed_scopes": systemService.AllowedScopes,
 			}).Error; err != nil {
 				return fmt.Errorf("failed to update system service: %w", err)
 			}
