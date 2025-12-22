@@ -127,7 +127,7 @@ func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Tim
 	// Add additional claims (profile, email, etc.)
 	for k, v := range claims {
 		if reservedClaims[k] {
-			return "", fmt.Errorf("cannot override reserved claim: %s", k)
+			continue
 		}
 		builder.Claim(k, v)
 	}
