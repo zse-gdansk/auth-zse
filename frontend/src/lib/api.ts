@@ -110,7 +110,12 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
 
 /**
  * Fetches the current authenticated user's profile from the OIDC UserInfo endpoint.
- * Requires a valid access token in LocalStorage.
+ *
+ * @returns A `MeResponse` containing the user's profile information from the OIDC UserInfo endpoint.
+ *          On success, returns user data mapped from OIDC claims (sub, name, preferred_username, email, etc.).
+ *          On failure, returns an error response with appropriate error code.
+ *
+ * @requires A valid access token stored in LocalStorage for authentication with the UserInfo endpoint.
  */
 export async function getUserInfo(): Promise<MeResponse> {
     const response = await GeneralClient.get<{
@@ -150,7 +155,12 @@ export async function getUserInfo(): Promise<MeResponse> {
 
 /**
  * Checks if the user has a valid session with the Identity Provider (Backend) via cookie.
- * Does NOT check for OIDC access token.
+ *
+ * @returns A boolean indicating whether the user has a valid session. Returns `true` if the
+ *          `/auth/me` endpoint responds successfully (indicating an active session), `false` otherwise.
+ *
+ * @note This function relies on HTTP-only cookies set by the backend to maintain session state.
+ *       It does not require explicit token passing as the backend handles authentication via cookies.
  */
 export async function checkIdPSession(): Promise<boolean> {
     try {
@@ -256,6 +266,17 @@ export async function confirmAuthorization(
     return validated;
 }
 
+/**
+ * Exchanges an authorization code for OAuth 2.0 tokens (access token, refresh token, ID token).
+ *
+ * @param request - The token exchange request containing the authorization code, redirect URI,
+ *                  code verifier (for PKCE), and client credentials
+ * @returns A `TokenResponse` with the exchanged tokens on success, or an error response
+ *          containing `error` and `error_description` on failure
+ *
+ * @note This function sends the request as `application/x-www-form-urlencoded` data as required
+ *       by the OAuth 2.0 specification for token endpoint requests.
+ */
 export async function exchangeToken(request: TokenRequest): Promise<TokenResponse> {
     const validatedData = tokenRequestSchema.parse(request);
 
