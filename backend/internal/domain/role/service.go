@@ -141,8 +141,16 @@ func (s *service) AssignRole(userID, roleID string) error {
 
 	if userPerm == nil {
 		// Create new permission
-		uid, _ := uuid.Parse(userID)
-		rid, _ := uuid.Parse(roleID)
+		uid, err := uuid.Parse(userID)
+		if err != nil {
+			return err
+		}
+
+		rid, err := uuid.Parse(roleID)
+		if err != nil {
+			return err
+		}
+
 		userPerm = &permission.UserPermission{
 			UserID:    uid,
 			ServiceID: role.ServiceID,
@@ -164,7 +172,10 @@ func (s *service) AssignRole(userID, roleID string) error {
 
 	userPerm.Bitmask = userPerm.Bitmask | role.Bitmask
 
-	rid, _ := uuid.Parse(roleID)
+	rid, err := uuid.Parse(roleID)
+	if err != nil {
+		return err
+	}
 	userPerm.RoleID = &rid
 
 	return s.permissionRepo.UpdateUserPermission(userPerm)
