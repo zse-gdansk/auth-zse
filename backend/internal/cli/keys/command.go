@@ -144,8 +144,12 @@ func generateKey(keysPath, kid string, bits int) error {
 	if testF, err := os.OpenFile(testFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600); err != nil {
 		return fmt.Errorf("no write permission to keys directory %s: %w", keysPath, err)
 	} else {
-		testF.Close()
-		os.Remove(testFile)
+		if err := testF.Close(); err != nil {
+			return fmt.Errorf("failed to close write-test file %s: %w", testFile, err)
+		}
+		if err := os.Remove(testFile); err != nil {
+			return fmt.Errorf("failed to remove write-test file %s: %w", testFile, err)
+		}
 	}
 
 	fmt.Printf("Generating %d-bit RSA key pair...\n", bits)
