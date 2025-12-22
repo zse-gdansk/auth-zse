@@ -29,7 +29,11 @@ import (
 // SetupRoutes configures all HTTP routes, repositories, caches, services, authentication, and OpenID Connect endpoints on the provided Fiber app.
 // It initializes repositories (user, session, service, permission), caches, core services, key store, authentication and OIDC services and handlers, then registers routes under /v1 (including /auth, /oauth and well-known endpoints).
 // SetupRoutes configures HTTP routes, repositories, caches, services, authentication, and middleware on the provided Fiber app.
-// It loads cryptographic keys and returns an error if the keys cannot be loaded or the configured active key is not present.
+// SetupRoutes registers API routes and initializes repositories, caches, services, and cryptographic keys.
+// 
+// app is the Fiber application to mount routes on. envConfig provides environment-specific settings; cfg provides application configuration (including auth key configuration and server domain).
+//
+// It returns an error if initialization fails — for example when cryptographic keys cannot be loaded or the configured active key is not present.
 func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Config) error {
 	api := app.Group("/v1")
 

@@ -46,7 +46,9 @@ type Service struct {
 // NewService constructs and returns a *Service configured with the provided dependencies.
 //
 // The returned Service is initialized with the users repository, session service,
-// permission service, role service, key store, issuer string, and an optional token revocation cache.
+// NewService constructs a new Service wired with the provided database handle, user repository,
+// session manager, permission service, role service, key store, issuer identifier, and optional
+// token revocation cache.
 func NewService(db *gorm.DB, users user.Repository, sessions session.Service, permService permission.ServiceInterface, roleService role.Service, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
 	return &Service{
 		db:                db,

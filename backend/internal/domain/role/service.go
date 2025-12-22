@@ -28,7 +28,8 @@ type service struct {
 	permissionRepo permission.Repository
 }
 
-// NewService creates a new role service
+// NewService returns a Service implementation configured with the provided database handle,
+// role repository, and permission repository.
 func NewService(db *gorm.DB, repo Repository, permissionRepo permission.Repository) Service {
 	return &service{
 		db:             db,
