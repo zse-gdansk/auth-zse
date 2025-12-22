@@ -120,65 +120,75 @@ func (s *service) DeleteRole(id string) error {
 
 // AssignRole assigns a role to a user, overwriting their current role for that service
 func (s *service) AssignRole(userID, roleID string) error {
-	role, err := s.repo.FindByID(roleID)
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txSvc := s.WithTx(tx).(*service)
 
-	userPerms, err := s.permissionRepo.FindUserPermissionsByUserIDAndServiceID(userID, role.ServiceID.String())
-	if err != nil {
-		return err
-	}
-
-	var userPerm *permission.UserPermission
-	// Find the global permission (resource is null)
-	for _, p := range userPerms {
-		if p.Resource == nil {
-			userPerm = p
-			break
-		}
-	}
-
-	if userPerm == nil {
-		// Create new permission
-		uid, err := uuid.Parse(userID)
+		role, err := txSvc.repo.FindByID(roleID)
 		if err != nil {
 			return err
 		}
+
+		userPerms, err := txSvc.permissionRepo.FindUserPermissionsByUserIDAndServiceID(userID, role.ServiceID.String())
+		if err != nil {
+			return err
+		}
+
+		var userPerm *permission.UserPermission
+		// Find the global permission (resource is null)
+		for _, p := range userPerms {
+			if p.Resource == nil {
+				userPerm = p
+				break
+			}
+		}
+
+		if userPerm == nil {
+			// Create new permission
+			uid, err := uuid.Parse(userID)
+			if err != nil {
+				return err
+			}
+
+			rid, err := uuid.Parse(roleID)
+			if err != nil {
+				return err
+			}
+
+			userPerm = &permission.UserPermission{
+				UserID:    uid,
+				ServiceID: role.ServiceID,
+				RoleID:    &rid,
+				Bitmask:   role.Bitmask,
+				Resource:  nil,
+			}
+			return txSvc.permissionRepo.CreateUserPermission(userPerm)
+		}
+
+		// Update existing permission
+		if userPerm.RoleID != nil {
+			oldRole, err := txSvc.repo.FindByID(userPerm.RoleID.String())
+			if err != nil {
+				return fmt.Errorf("failed to fetch old role %s for user %s: %w", userPerm.RoleID, userID, err)
+			}
+			// Remove old role's bits
+			userPerm.Bitmask = userPerm.Bitmask &^ oldRole.Bitmask
+		}
+
+		userPerm.Bitmask = userPerm.Bitmask | role.Bitmask
 
 		rid, err := uuid.Parse(roleID)
 		if err != nil {
 			return err
 		}
+		userPerm.RoleID = &rid
 
-		userPerm = &permission.UserPermission{
-			UserID:    uid,
-			ServiceID: role.ServiceID,
-			RoleID:    &rid,
-			Bitmask:   role.Bitmask,
-			Resource:  nil,
+		if err := txSvc.permissionRepo.UpdateUserPermission(userPerm); err != nil {
+			return err
 		}
-		return s.permissionRepo.CreateUserPermission(userPerm)
-	}
 
-	// Update existing permission
-	if userPerm.RoleID != nil {
-		oldRole, err := s.repo.FindByID(userPerm.RoleID.String())
-		if err == nil {
-			// Remove old role's bits
-			userPerm.Bitmask = userPerm.Bitmask &^ oldRole.Bitmask
-		}
-	}
-
-	userPerm.Bitmask = userPerm.Bitmask | role.Bitmask
-
-	rid, err := uuid.Parse(roleID)
-	if err != nil {
-		return err
-	}
-	userPerm.RoleID = &rid
-
-	return s.permissionRepo.UpdateUserPermission(userPerm)
+		// Increment permission version to invalidate tokens
+		return txSvc.permissionRepo.IncrementPermissionVersion(userID)
+	})
 }
 
 func (s *service) AssignDefaultRoles(userID string) error {
