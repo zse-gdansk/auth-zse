@@ -363,12 +363,12 @@ export default class GeneralClient extends BaseClient {
                                 {
                                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                                     withCredentials: true,
-                                }
+                                },
                             );
 
                             if (response.data && response.data.access_token) {
                                 LocalStorageTokenService.setAccessToken(response.data.access_token);
-                                
+
                                 if (originalRequest.headers) {
                                     originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
                                 }
@@ -382,7 +382,7 @@ export default class GeneralClient extends BaseClient {
                     }
 
                     return Promise.reject(error);
-                }
+                },
             );
         }
         return GeneralClient.axiosInstance;
