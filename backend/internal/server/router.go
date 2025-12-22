@@ -67,7 +67,7 @@ func SetupRoutes(app *fiber.App, envConfig *config.Environment, cfg *config.Conf
 	issuer := cfg.Server.Domain
 
 	// Initialize auth service
-	authService := auth.NewService(userRepo, sessionService, permissionService, roleService, keyStore, issuer, tokenRevocationCache)
+	authService := auth.NewService(database.DB, userRepo, sessionService, permissionService, roleService, keyStore, issuer, tokenRevocationCache)
 	authHandler := auth.NewHandler(authService, userService)
 
 	// Setup auth routes

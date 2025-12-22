@@ -33,6 +33,7 @@ type AuthService interface {
 
 // Service handles authentication operations
 type Service struct {
+	db                *gorm.DB
 	Users             user.Repository
 	Sessions          session.Service
 	PermissionService permission.ServiceInterface
@@ -43,11 +44,12 @@ type Service struct {
 }
 
 // NewService constructs and returns a *Service configured with the provided dependencies.
-// 
+//
 // The returned Service is initialized with the users repository, session service,
 // permission service, role service, key store, issuer string, and an optional token revocation cache.
-func NewService(users user.Repository, sessions session.Service, permService permission.ServiceInterface, roleService role.Service, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
+func NewService(db *gorm.DB, users user.Repository, sessions session.Service, permService permission.ServiceInterface, roleService role.Service, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
 	return &Service{
+		db:                db,
 		Users:             users,
 		Sessions:          sessions,
 		PermissionService: permService,
@@ -207,17 +209,26 @@ func (s *Service) Register(req user.RegisterRequest) (*user.UserResponse, error)
 		IsActive:  true,
 	}
 
-	if err := s.Users.Create(newUser); err != nil {
-		return nil, err
-	}
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUsers := s.Users.WithTx(tx)
 
-	// Assign default roles
-	if s.RoleService != nil {
-		if err := s.RoleService.AssignDefaultRoles(newUser.ID.String()); err != nil {
-			slog.Error("Failed to assign default roles", "error", err, "user_id", newUser.ID)
-			s.Users.Delete(newUser.ID.String())
-			return nil, fmt.Errorf("failed to assign default roles: %w", err)
+		if err := txUsers.Create(newUser); err != nil {
+			return err
 		}
+
+		// Assign default roles
+		if s.RoleService != nil {
+			txRoleService := s.RoleService.WithTx(tx)
+			if err := txRoleService.AssignDefaultRoles(newUser.ID.String()); err != nil {
+				slog.Error("Failed to assign default roles", "error", err, "user_id", newUser.ID)
+				return fmt.Errorf("failed to assign default roles: %w", err)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return newUser.ToResponse(), nil

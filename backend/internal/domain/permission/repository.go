@@ -7,6 +7,7 @@ import (
 
 // Repository interface for permission operations
 type Repository interface {
+	WithTx(tx *gorm.DB) Repository
 	// Permissions
 	CreatePermission(permission *Permission) error
 	FindPermissionByID(id string) (*Permission, error)
@@ -43,6 +44,11 @@ type repository struct {
 // NewRepository creates a Repository backed by the provided *gorm.DB.
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db}
+}
+
+// WithTx returns a new repository instance with the provided transaction
+func (r *repository) WithTx(tx *gorm.DB) Repository {
+	return &repository{db: tx}
 }
 
 // CreatePermission creates a new permission

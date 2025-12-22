@@ -3,10 +3,12 @@ package role
 import (
 	"github.com/Anvoria/authly/internal/domain/permission"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Service defines the interface for role business logic
 type Service interface {
+	WithTx(tx *gorm.DB) Service
 	CreateRole(role *Role) error
 	GetRole(id string) (*Role, error)
 	GetRoleByName(serviceID, name string) (*Role, error)
@@ -23,12 +25,18 @@ type service struct {
 	permissionRepo permission.Repository
 }
 
-// NewService returns a Service implementation backed by the provided role and permission repositories.
- // The returned Service uses repo for role persistence and permissionRepo for user permission operations.
+// NewService creates a new role service
 func NewService(repo Repository, permissionRepo permission.Repository) Service {
 	return &service{
 		repo:           repo,
 		permissionRepo: permissionRepo,
+	}
+}
+
+func (s *service) WithTx(tx *gorm.DB) Service {
+	return &service{
+		repo:           s.repo.WithTx(tx),
+		permissionRepo: s.permissionRepo.WithTx(tx),
 	}
 }
 

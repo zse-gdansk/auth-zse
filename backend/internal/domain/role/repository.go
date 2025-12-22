@@ -12,6 +12,7 @@ var (
 
 // Repository defines the interface for role persistence
 type Repository interface {
+	WithTx(tx *gorm.DB) Repository
 	Create(role *Role) error
 	FindByID(id string) (*Role, error)
 	FindByName(serviceID, name string) (*Role, error)
@@ -29,6 +30,11 @@ type repository struct {
 // NewRepository returns a Repository backed by the provided GORM database instance.
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
+}
+
+// WithTx returns a new repository instance with the provided transaction
+func (r *repository) WithTx(tx *gorm.DB) Repository {
+	return &repository{db: tx}
 }
 
 func (r *repository) Create(role *Role) error {
