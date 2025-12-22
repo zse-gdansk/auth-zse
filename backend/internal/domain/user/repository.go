@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 // Repository interface for user operations
 type Repository interface {
+	WithTx(tx *gorm.DB) Repository
 	Create(user *User) error
 	FindByID(id string) (*User, error)
 	FindByEmail(email string) (*User, error)
@@ -18,9 +19,14 @@ type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository creates a new user repository
+// NewRepository creates a Repository backed by the provided GORM DB handle.
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db}
+}
+
+// WithTx returns a new repository instance with the provided transaction
+func (r *repository) WithTx(tx *gorm.DB) Repository {
+	return &repository{db: tx}
 }
 
 // Create creates a new user

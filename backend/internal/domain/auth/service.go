@@ -10,6 +10,7 @@ import (
 
 	"github.com/Anvoria/authly/internal/cache"
 	"github.com/Anvoria/authly/internal/domain/permission"
+	"github.com/Anvoria/authly/internal/domain/role"
 	"github.com/Anvoria/authly/internal/domain/session"
 	"github.com/Anvoria/authly/internal/domain/user"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -32,20 +33,29 @@ type AuthService interface {
 
 // Service handles authentication operations
 type Service struct {
+	db                *gorm.DB
 	Users             user.Repository
 	Sessions          session.Service
 	PermissionService permission.ServiceInterface
+	RoleService       role.Service
 	KeyStore          *KeyStore
 	issuer            string
 	revocationCache   *cache.TokenRevocationCache
 }
 
-// NewService constructs a Service configured with the provided user repository, session service, permission service, key store, issuer, and revocation cache.
-func NewService(users user.Repository, sessions session.Service, permService permission.ServiceInterface, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
+// NewService constructs and returns a *Service configured with the provided dependencies.
+//
+// The returned Service is initialized with the users repository, session service,
+// NewService constructs a new Service wired with the provided database handle, user repository,
+// session manager, permission service, role service, key store, issuer identifier, and optional
+// token revocation cache.
+func NewService(db *gorm.DB, users user.Repository, sessions session.Service, permService permission.ServiceInterface, roleService role.Service, keyStore *KeyStore, issuer string, revocationCache *cache.TokenRevocationCache) *Service {
 	return &Service{
+		db:                db,
 		Users:             users,
 		Sessions:          sessions,
 		PermissionService: permService,
+		RoleService:       roleService,
 		KeyStore:          keyStore,
 		issuer:            issuer,
 		revocationCache:   revocationCache,
@@ -201,7 +211,25 @@ func (s *Service) Register(req user.RegisterRequest) (*user.UserResponse, error)
 		IsActive:  true,
 	}
 
-	if err := s.Users.Create(newUser); err != nil {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUsers := s.Users.WithTx(tx)
+
+		if err := txUsers.Create(newUser); err != nil {
+			return err
+		}
+
+		// Assign default roles
+		if s.RoleService != nil {
+			txRoleService := s.RoleService.WithTx(tx)
+			if err := txRoleService.AssignDefaultRoles(newUser.ID.String()); err != nil {
+				slog.Error("Failed to assign default roles", "error", err, "user_id", newUser.ID)
+				return fmt.Errorf("failed to assign default roles: %w", err)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 

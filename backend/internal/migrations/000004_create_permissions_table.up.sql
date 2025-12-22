@@ -15,11 +15,3 @@ CREATE INDEX IF NOT EXISTS idx_permissions_deleted_at ON permissions(deleted_at)
 CREATE INDEX IF NOT EXISTS idx_permissions_service_id ON permissions(service_id);
 CREATE INDEX IF NOT EXISTS idx_permissions_active ON permissions(active);
 
-INSERT INTO permissions (service_id, bit, name, active)
-VALUES 
-    ('00000000-0000-0000-0000-000000000001', 0, 'read', true),
-    ('00000000-0000-0000-0000-000000000001', 1, 'write', true),
-    ('00000000-0000-0000-0000-000000000001', 2, 'delete', true),
-    ('00000000-0000-0000-0000-000000000001', 3, 'admin', true)
-ON CONFLICT (service_id, bit) DO NOTHING;
-

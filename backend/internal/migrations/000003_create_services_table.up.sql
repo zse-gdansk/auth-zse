@@ -15,14 +15,3 @@ CREATE INDEX IF NOT EXISTS idx_services_code ON services(code);
 CREATE INDEX IF NOT EXISTS idx_services_active ON services(active);
 CREATE INDEX IF NOT EXISTS idx_services_is_system ON services(is_system);
 
-INSERT INTO services (id, code, name, description, active, is_system)
-VALUES (
-    '00000000-0000-0000-0000-000000000001',
-    'authly',
-    'Authly',
-    'Default authentication service',
-    true,
-    true
-)
-ON CONFLICT (code) DO NOTHING;
-

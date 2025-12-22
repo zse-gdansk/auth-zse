@@ -7,6 +7,7 @@ import (
 
 // Repository interface for permission operations
 type Repository interface {
+	WithTx(tx *gorm.DB) Repository
 	// Permissions
 	CreatePermission(permission *Permission) error
 	FindPermissionByID(id string) (*Permission, error)
@@ -22,6 +23,7 @@ type Repository interface {
 	FindUserPermission(userID, serviceID string, resource *string) (*UserPermission, error)
 	FindUserPermissionsByUserID(userID string) ([]*UserPermission, error)
 	FindUserPermissionsByUserIDAndServiceID(userID, serviceID string) ([]*UserPermission, error)
+	FindUserPermissionsByRoleID(roleID string) ([]*UserPermission, error)
 	UpdateUserPermission(userPerm *UserPermission) error
 	DeleteUserPermission(userID, serviceID string, resource *string) error
 	IncrementPermissionVersion(userID string) error
@@ -42,6 +44,11 @@ type repository struct {
 // NewRepository creates a Repository backed by the provided *gorm.DB.
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db}
+}
+
+// WithTx returns a new repository instance with the provided transaction
+func (r *repository) WithTx(tx *gorm.DB) Repository {
+	return &repository{db: tx}
 }
 
 // CreatePermission creates a new permission
@@ -164,6 +171,15 @@ func (r *repository) FindUserPermissionsByUserID(userID string) ([]*UserPermissi
 func (r *repository) FindUserPermissionsByUserIDAndServiceID(userID, serviceID string) ([]*UserPermission, error) {
 	var userPerms []*UserPermission
 	if err := r.db.Where("user_id = ? AND service_id = ?", userID, serviceID).Find(&userPerms).Error; err != nil {
+		return nil, err
+	}
+	return userPerms, nil
+}
+
+// FindUserPermissionsByRoleID gets all user permissions associated with a specific role
+func (r *repository) FindUserPermissionsByRoleID(roleID string) ([]*UserPermission, error) {
+	var userPerms []*UserPermission
+	if err := r.db.Where("role_id = ?", roleID).Find(&userPerms).Error; err != nil {
 		return nil, err
 	}
 	return userPerms, nil
