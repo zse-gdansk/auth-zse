@@ -166,7 +166,7 @@ func (s *Service) Login(username, password, userAgent, ip string) (*LoginRespons
 		return nil, ErrInvalidCredentials
 	}
 
-	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, nil, 24*time.Hour*30)
+	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, nil, 30 * 24 * time.Hour)
 	if err != nil {
 		return nil, err
 	}
