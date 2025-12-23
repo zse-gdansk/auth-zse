@@ -229,17 +229,25 @@ func (s *service) AssignRole(userID, roleID string) error {
 }
 
 func (s *service) AssignDefaultRoles(userID string) error {
-	roles, err := s.repo.FindAllDefaults()
-	if err != nil {
-		return err
-	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txService := s.WithTx(tx)
+		txSvc, ok := txService.(*service)
+		if !ok {
+			return fmt.Errorf("internal error: failed to cast service")
+		}
 
-	for _, role := range roles {
-		if err := s.AssignRole(userID, role.ID.String()); err != nil {
+		roles, err := txSvc.repo.FindAllDefaults()
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+
+		for _, role := range roles {
+			if err := txSvc.AssignRole(userID, role.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *service) propagateRoleChanges(roleID string, addedBits, removedBits uint64) error {
