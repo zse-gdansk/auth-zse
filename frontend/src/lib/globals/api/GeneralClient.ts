@@ -346,7 +346,11 @@ export default class GeneralClient extends BaseClient {
                     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
                     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-                        if (originalRequest.url?.includes("/oauth/token")) {
+                        if (
+                            originalRequest.url?.includes("/oauth/token") ||
+                            originalRequest.url?.includes("/auth/me") ||
+                            originalRequest.url?.includes("/auth/login")
+                        ) {
                             return Promise.reject(error);
                         }
 
