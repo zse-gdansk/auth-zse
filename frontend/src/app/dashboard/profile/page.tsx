@@ -89,7 +89,7 @@ export default function ProfilePage() {
                             disabled
                             readOnly
                             helperText="The date when your account was originally created."
-                        />{" "}
+                        />
                     </div>
                 </section>
             </main>
