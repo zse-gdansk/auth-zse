@@ -17,14 +17,12 @@ type LoginFormData = {
 };
 
 /**
- * Render the login form and manage local form state, validation, authentication, and OIDC redirect handling.
+ * Render the login UI, manage form state and validation, perform authentication, and handle post-auth redirect behavior.
  *
- * Displays username/password inputs, validates input against the login schema, performs sign-in via the login mutation,
- * shows field-specific and API errors, and reflects loading states. If the user is already authenticated, or signs in
- * successfully and an `oidc_params` query parameter is present, the component prepares PKCE parameters when missing,
- * persists the PKCE verifier, and redirects to the authorize endpoint; otherwise it redirects to the app root.
+ * If an IdP session exists or sign-in succeeds and an `oidc_params` query parameter is present, redirects to `/authorize`
+ * (adding PKCE parameters when missing); otherwise navigates to the application root.
  *
- * @returns The rendered login page content as a React element
+ * @returns The login page content as a React element
  */
 function LoginPageContent() {
     const searchParams = useSearchParams();

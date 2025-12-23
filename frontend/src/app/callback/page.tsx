@@ -8,6 +8,13 @@ import { OIDC_CONFIG } from "@/authly/lib/config";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Button from "@/authly/components/ui/Button";
 
+/**
+ * Processes the OAuth/OIDC authorization callback, performs state validation and token exchange, and renders authentication status UI.
+ *
+ * This component runs its callback handling once on mount: it validates the `state` query parameter against the stored OIDC state, handles `error` query parameters, exchanges an authorization `code` for tokens using the stored code verifier, stores the access token on success, clears OIDC transient values, and navigates to the dashboard. If any validation or exchange step fails it displays an error screen with a button to return to the login page.
+ *
+ * @returns A JSX element that shows a centered "Authenticating..." progress UI while processing or an error screen with a "Back to Login" button when an error occurs.
+ */
 function CallbackPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -102,6 +109,11 @@ function CallbackPageContent() {
     );
 }
 
+/**
+ * Renders the OAuth/OIDC callback page with a Suspense boundary and loading fallback while authentication is processed.
+ *
+ * @returns The page's JSX element containing a Suspense wrapper with a loading fallback and the callback content.
+ */
 export default function CallbackPage() {
     return (
         <Suspense

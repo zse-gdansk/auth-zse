@@ -110,13 +110,11 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
 }
 
 /**
- * Fetches the current authenticated user's profile from the OIDC UserInfo endpoint.
+ * Retrieve the current authenticated user's profile from the OIDC UserInfo endpoint.
  *
- * @returns A `MeResponse` containing the user's profile information from the OIDC UserInfo endpoint.
- *          On success, returns user data mapped from OIDC claims (sub, name, preferred_username, email, etc.).
- *          On failure, returns an error response with appropriate error code.
+ * Maps standard OIDC userinfo claims (e.g., `sub`, `preferred_username`, `given_name`, `family_name`, `email`, `active`, `created_at`, `updated_at`) to the internal `MeResponse` shape.
  *
- * @requires A valid access token stored in LocalStorage for authentication with the UserInfo endpoint.
+ * @returns On success, a `MeResponse` with `success: true` and `data.user` containing `id`, `username`, `first_name`, `last_name`, `email`, `is_active`, `created_at`, and `updated_at`. On failure, a `MeResponse` with `success: false` and an `error` code describing the failure.
  */
 export async function getUserInfo(): Promise<MeResponse> {
     const response = await GeneralClient.get<{
@@ -158,13 +156,11 @@ export async function getUserInfo(): Promise<MeResponse> {
 }
 
 /**
- * Checks if the user has a valid session with the Identity Provider (Backend) via cookie.
+ * Determines whether the Identity Provider has an active session for the current client.
  *
- * @returns A boolean indicating whether the user has a valid session. Returns `true` if the
- *          `/auth/me` endpoint responds successfully (indicating an active session), `false` otherwise.
+ * Relies on HTTP-only cookies managed by the backend; no explicit tokens need to be provided.
  *
- * @note This function relies on HTTP-only cookies set by the backend to maintain session state.
- *       It does not require explicit token passing as the backend handles authentication via cookies.
+ * @returns `true` if the `/auth/me` endpoint indicates an active session, `false` otherwise.
  */
 export async function checkIdPSession(): Promise<boolean> {
     try {
@@ -201,9 +197,9 @@ export async function validateAuthorizationRequest(
 }
 
 /**
- * Determine whether a user is currently authenticated and, if so, provide their user ID.
+ * Check whether the current session is authenticated and include the user's id when authenticated.
  *
- * @returns `{ authenticated: true, user_id: string }` when authenticated; `{ authenticated: false }` otherwise.
+ * @returns `{ authenticated: true, user_id: string }` when the current session is authenticated, `{ authenticated: false }` otherwise.
  */
 export async function checkAuthStatus(): Promise<{
     authenticated: boolean;
@@ -224,10 +220,10 @@ export async function checkAuthStatus(): Promise<{
 }
 
 /**
- * Confirms an OAuth authorization decision with the backend and returns the validated authorization response.
+ * Confirm an OAuth authorization decision with the backend and return the validated authorization response.
  *
- * @param request - The authorization confirmation payload (validated against `confirmAuthorizationRequestSchema`)
- * @returns A `ConfirmAuthorizationResponse` parsed and validated by `confirmAuthorizationResponseSchema`. On failure the response contains `success: false` and `error`/`error_description`; on success it contains the backend-provided authorization data (including `redirect_uri` when applicable).
+ * @param request - The authorization confirmation payload
+ * @returns A `ConfirmAuthorizationResponse` object. If `success` is `false`, the object contains `error` and `error_description`. If `success` is `true`, the object contains the backend-provided authorization data, including `redirect_uri` when applicable.
  * @throws Error if the backend indicates success but does not provide a `redirect_uri`
  */
 export async function confirmAuthorization(
@@ -324,19 +320,13 @@ export async function exchangeToken(request: TokenRequest): Promise<TokenRespons
 }
 
 /**
- * Attempts to refresh the access token using the backend session cookie.
+ * Refreshes the OAuth access token using the backend session cookie.
  *
- * This function sends a refresh token request to the OAuth token endpoint without explicitly
- * providing a refresh_token parameter, relying on the backend to accept the HTTP-only 'session'
- * cookie as a fallback authentication mechanism for the refresh operation.
+ * Sends a form-encoded refresh request (grant_type=refresh_token) to the token endpoint and
+ * relies on the backend's HTTP-only session cookie for authentication when a refresh token value
+ * is not provided by the client.
  *
- * @returns A `TokenResponse` containing the refreshed tokens on success, or an error response
- *          with `error` and `error_description` on failure. On success includes `access_token`,
- *          `refresh_token`, `token_type`, and `expires_in` fields.
- *
- * @note This function relies on HTTP-only cookies set by the backend to maintain session state.
- *       It does not require explicit token passing as the backend handles authentication via cookies.
- *       The request is sent as `application/x-www-form-urlencoded` data as required by OAuth 2.0 specification.
+ * @returns A `TokenResponse` containing `access_token`, `refresh_token`, `token_type`, and `expires_in` on success; on failure an object with `error` and `error_description`.
  */
 export async function refreshAccessToken(): Promise<TokenResponse> {
     const formData = new URLSearchParams();

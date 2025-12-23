@@ -7,6 +7,13 @@ import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import Button from "@/authly/components/ui/Button";
 
+/**
+ * Render the profile page for the current user and enforce access control.
+ *
+ * Displays a read-only view of the user's identity and account information; if the user is not authenticated the component redirects to "/login" and while user data is being fetched it renders a full-screen loading spinner.
+ *
+ * @returns The React element representing the profile page for the current user.
+ */
 export default function ProfilePage() {
     const { data: response, isLoading } = useMe();
     const router = useRouter();
