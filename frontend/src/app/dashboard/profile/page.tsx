@@ -72,8 +72,8 @@ export default function ProfilePage() {
                             />
                         </div>
                         <div className="space-y-6">
-                            <Input label="First Name" value={user.first_name} disabled readOnly />
-                            <Input label="Last Name" value={user.last_name} disabled readOnly />
+                            <Input label="First Name" value={user.first_name || ""} disabled readOnly />
+                            <Input label="Last Name" value={user.last_name || ""} disabled readOnly />
                         </div>
                     </div>
                 </section>
