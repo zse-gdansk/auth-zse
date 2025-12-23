@@ -234,6 +234,7 @@ export async function loginWithRedirect(): Promise<void> {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
+    LocalStorageTokenService.setOidcState(state);
     LocalStorageTokenService.setOidcCodeVerifier(codeVerifier);
 
     const params = new URLSearchParams({

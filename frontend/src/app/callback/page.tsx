@@ -20,8 +20,15 @@ function CallbackPageContent() {
 
         const handleCallback = async () => {
             const code = searchParams.get("code");
+            const stateParam = searchParams.get("state");
             const errorParam = searchParams.get("error");
             const errorDescription = searchParams.get("error_description");
+
+            const storedState = LocalStorageTokenService.oidcState;
+            if (stateParam && storedState && stateParam !== storedState) {
+                setError("State mismatch. Possible CSRF attack detected.");
+                return;
+            }
 
             if (errorParam) {
                 setError(`${errorParam}: ${errorDescription || "Unknown error"}`);
@@ -53,6 +60,7 @@ function CallbackPageContent() {
                 } else {
                     LocalStorageTokenService.setAccessToken(response.access_token);
                     LocalStorageTokenService.setOidcCodeVerifier("");
+                    LocalStorageTokenService.setOidcState("");
 
                     router.push("/dashboard");
                 }
