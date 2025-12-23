@@ -1,15 +1,15 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
-import { isApiError } from "@/authly/lib/api";
+import { isApiError, checkIdPSession } from "@/authly/lib/api";
 import { loginRequestSchema, type LoginRequest } from "@/authly/lib/schemas/auth/login";
 import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
-import { useLogin, useMe } from "@/authly/lib/hooks/useAuth";
+import { useLogin } from "@/authly/lib/hooks/useAuth";
 
 type LoginFormData = {
     username: string;
@@ -17,14 +17,12 @@ type LoginFormData = {
 };
 
 /**
- * Render the login form and manage local form state, validation, authentication, and OIDC redirect handling.
+ * Render the login UI, manage form state and validation, perform authentication, and handle post-auth redirect behavior.
  *
- * Displays username/password inputs, validates input against the login schema, performs sign-in via the login mutation,
- * shows field-specific and API errors, and reflects loading states. If the user is already authenticated, or signs in
- * successfully and an `oidc_params` query parameter is present, the component prepares PKCE parameters when missing,
- * persists the PKCE verifier, and redirects to the authorize endpoint; otherwise it redirects to the app root.
+ * If an IdP session exists or sign-in succeeds and an `oidc_params` query parameter is present, redirects to `/authorize`
+ * (adding PKCE parameters when missing); otherwise navigates to the application root.
  *
- * @returns The rendered login page content as a React element
+ * @returns The login page content as a React element
  */
 function LoginPageContent() {
     const searchParams = useSearchParams();
@@ -35,47 +33,59 @@ function LoginPageContent() {
     });
     const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
     const [apiError, setApiError] = useState<string | null>(null);
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
-    const { data: meResponse, isLoading: isCheckingAuth } = useMe();
     const loginMutation = useLogin();
 
-    useEffect(() => {
-        if (meResponse?.success) {
-            const oidcParams = searchParams.get("oidc_params");
-            if (oidcParams) {
-                const handleOidcRedirect = async () => {
-                    try {
-                        const decoded = decodeURIComponent(oidcParams);
-                        const params = new URLSearchParams(decoded);
+    const performRedirect = useCallback(async () => {
+        const oidcParams = searchParams.get("oidc_params");
+        if (oidcParams) {
+            const handleOidcRedirect = async () => {
+                try {
+                    const decoded = decodeURIComponent(oidcParams);
+                    const params = new URLSearchParams(decoded);
 
-                        if (!params.has("code_challenge")) {
-                            const verifier = generateCodeVerifier();
-                            const challenge = await generateCodeChallenge(verifier);
+                    if (!params.has("code_challenge")) {
+                        const verifier = generateCodeVerifier();
+                        const challenge = await generateCodeChallenge(verifier);
 
-                            params.set("code_challenge", challenge);
-                            params.set("code_challenge_method", "S256");
+                        params.set("code_challenge", challenge);
+                        params.set("code_challenge_method", "s256");
 
-                            LocalStorageTokenService.setOidcCodeVerifier(verifier);
-                        }
-
-                        const authorizeUrl = new URL("/authorize", window.location.origin);
-                        params.forEach((value, key) => {
-                            authorizeUrl.searchParams.set(key, value);
-                        });
-                        router.push(authorizeUrl.toString());
-                    } catch (error) {
-                        console.error("Failed to process OIDC parameters:", error);
-                        router.push("/authorize?" + oidcParams);
+                        LocalStorageTokenService.setOidcCodeVerifier(verifier);
                     }
-                };
-                handleOidcRedirect().catch((error) => {
-                    console.error("OIDC redirect failed:", error);
-                });
-            } else {
-                router.push("/");
-            }
+
+                    const authorizeUrl = new URL("/authorize", window.location.origin);
+                    params.forEach((value, key) => {
+                        authorizeUrl.searchParams.set(key, value);
+                    });
+                    router.push(authorizeUrl.toString());
+                } catch (error) {
+                    console.error("Failed to process OIDC parameters:", error);
+                    setApiError("Failed to process login parameters. Please try again or return to home.");
+                    LocalStorageTokenService.setOidcCodeVerifier("");
+                    setIsCheckingSession(false);
+                    setIsRedirecting(false);
+                }
+            };
+            await handleOidcRedirect();
+        } else {
+            router.push("/");
         }
-    }, [meResponse, router, searchParams]);
+    }, [searchParams, router]);
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const hasSession = await checkIdPSession();
+            if (hasSession) {
+                await performRedirect();
+            } else {
+                setIsCheckingSession(false);
+            }
+        };
+        checkSession();
+    }, [performRedirect]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,8 +111,16 @@ function LoginPageContent() {
         };
 
         loginMutation.mutate(requestData, {
-            onSuccess: (response) => {
-                if (!response.success) {
+            onSuccess: async (response) => {
+                if (response.success) {
+                    setIsRedirecting(true);
+                    try {
+                        await performRedirect();
+                    } catch (error) {
+                        console.error("Redirect failed:", error);
+                        setIsRedirecting(false);
+                    }
+                } else {
                     setApiError(response.error || "Login failed");
                 }
             },
@@ -129,9 +147,9 @@ function LoginPageContent() {
         }
     };
 
-    const isLoading = loginMutation.isPending;
+    const isLoading = loginMutation.isPending || isRedirecting;
 
-    if (isCheckingAuth) {
+    if (isCheckingSession) {
         return (
             <AuthorizeLayout>
                 <div className="flex items-center justify-center py-12">
@@ -176,7 +194,7 @@ function LoginPageContent() {
 
                     <div className="pt-1">
                         <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
-                            {isLoading ? "Signing in..." : "Sign In"}
+                            {isLoading ? (isRedirecting ? "Redirecting..." : "Signing in...") : "Sign In"}
                         </Button>
                     </div>
                 </form>
@@ -184,12 +202,17 @@ function LoginPageContent() {
                 <div className="pt-2 border-t border-white/5">
                     <p className="text-center text-sm text-white/50 mt-2">
                         Don&apos;t have an account?{" "}
-                        <a
-                            href={`/register${searchParams.get("oidc_params") ? `?oidc_params=${encodeURIComponent(searchParams.get("oidc_params")!)}` : ""}`}
-                            className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
-                        >
-                            Sign Up
-                        </a>
+                        {(() => {
+                            const oidcParams = searchParams.get("oidc_params");
+                            return (
+                                <a
+                                    href={`/register${oidcParams ? `?oidc_params=${encodeURIComponent(oidcParams)}` : ""}`}
+                                    className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
+                                >
+                                    Sign Up
+                                </a>
+                            );
+                        })()}
                     </p>
                 </div>
             </div>

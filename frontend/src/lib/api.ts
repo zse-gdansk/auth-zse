@@ -6,7 +6,7 @@ import {
     type RegisterResponse,
 } from "./schemas/auth/register";
 import { loginRequestSchema, loginResponseSchema, type LoginRequest, type LoginResponse } from "./schemas/auth/login";
-import { meResponseSchema, type MeResponse } from "./schemas/auth/me";
+import { type MeResponse } from "./schemas/auth/me";
 import {
     validateAuthorizationRequestResponseSchema,
     confirmAuthorizationRequestSchema,
@@ -23,6 +23,7 @@ import type { ApiError } from "./schemas/auth/login";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { z } from "zod";
 import { IRequestResponsePayload } from "./globals/api/interfaces/IRequestResponsePayload";
+import { OIDC_CONFIG } from "./config";
 
 export type { ApiError };
 
@@ -109,27 +110,65 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
 }
 
 /**
- * Fetches the current authenticated user's profile from the backend and returns a validated response.
+ * Retrieve the current authenticated user's profile from the OIDC UserInfo endpoint.
  *
- * @returns A `MeResponse` containing the user's profile under `data` when successful; otherwise a `MeResponse` with `success: false` and an `error` string describing the failure—either `redirect_occurred`, the backend-provided error, or `unknown_error`.
+ * Maps standard OIDC userinfo claims (e.g., `sub`, `preferred_username`, `given_name`, `family_name`, `email`, `active`, `created_at`, `updated_at`) to the internal `MeResponse` shape.
+ *
+ * @returns On success, a `MeResponse` with `success: true` and `data.user` containing `id`, `username`, `first_name`, `last_name`, `email`, `is_active`, `created_at`, and `updated_at`. On failure, a `MeResponse` with `success: false` and an `error` code describing the failure.
  */
-export async function getMe(): Promise<MeResponse> {
-    return handleAuthRequest(
-        () =>
-            GeneralClient.get<{
-                user: {
-                    id: string;
-                    username: string;
-                    first_name: string;
-                    last_name: string;
-                    email: string | null;
-                    is_active: boolean;
-                    created_at: string;
-                    updated_at: string;
-                };
-            }>("/auth/me"),
-        meResponseSchema,
-    );
+export async function getUserInfo(): Promise<MeResponse> {
+    const response = await GeneralClient.get<{
+        sub: string;
+        name?: string;
+        preferred_username?: string;
+        email?: string;
+        given_name?: string;
+        family_name?: string;
+        active?: boolean;
+        created_at?: string;
+        updated_at?: string;
+    }>("/oauth/userinfo");
+
+    if (!response.success) {
+        return {
+            success: false,
+            error: response.error || "unknown_error",
+        };
+    }
+
+    // Map OIDC claims to MeResponse format
+    return {
+        success: true,
+        data: {
+            user: {
+                id: response.data.sub,
+                username: response.data.preferred_username || "",
+                first_name: response.data.given_name || "",
+                last_name: response.data.family_name || "",
+                email: response.data.email || null,
+                is_active: response.data.active ?? true,
+                created_at: response.data.created_at || "",
+                updated_at: response.data.updated_at || "",
+            },
+        },
+        message: "User info fetched successfully",
+    };
+}
+
+/**
+ * Determines whether the Identity Provider has an active session for the current client.
+ *
+ * Relies on HTTP-only cookies managed by the backend; no explicit tokens need to be provided.
+ *
+ * @returns `true` if the `/auth/me` endpoint indicates an active session, `false` otherwise.
+ */
+export async function checkIdPSession(): Promise<boolean> {
+    try {
+        const response = await GeneralClient.get("/auth/me");
+        return response.success;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -158,16 +197,16 @@ export async function validateAuthorizationRequest(
 }
 
 /**
- * Determine whether a user is currently authenticated and, if so, provide their user ID.
+ * Check whether the current session is authenticated and include the user's id when authenticated.
  *
- * @returns `{ authenticated: true, user_id: string }` when authenticated; `{ authenticated: false }` otherwise.
+ * @returns `{ authenticated: true, user_id: string }` when the current session is authenticated, `{ authenticated: false }` otherwise.
  */
 export async function checkAuthStatus(): Promise<{
     authenticated: boolean;
     user_id?: string;
 }> {
     try {
-        const response = await getMe();
+        const response = await getUserInfo();
         if (response.success) {
             return {
                 authenticated: true,
@@ -181,10 +220,10 @@ export async function checkAuthStatus(): Promise<{
 }
 
 /**
- * Confirms an OAuth authorization decision with the backend and returns the validated authorization response.
+ * Confirm an OAuth authorization decision with the backend and return the validated authorization response.
  *
- * @param request - The authorization confirmation payload (validated against `confirmAuthorizationRequestSchema`)
- * @returns A `ConfirmAuthorizationResponse` parsed and validated by `confirmAuthorizationResponseSchema`. On failure the response contains `success: false` and `error`/`error_description`; on success it contains the backend-provided authorization data (including `redirect_uri` when applicable).
+ * @param request - The authorization confirmation payload
+ * @returns A `ConfirmAuthorizationResponse` object. If `success` is `false`, the object contains `error` and `error_description`. If `success` is `true`, the object contains the backend-provided authorization data, including `redirect_uri` when applicable.
  * @throws Error if the backend indicates success but does not provide a `redirect_uri`
  */
 export async function confirmAuthorization(
@@ -227,6 +266,17 @@ export async function confirmAuthorization(
     return validated;
 }
 
+/**
+ * Exchanges an authorization code for OAuth 2.0 tokens (access token, refresh token, ID token).
+ *
+ * @param request - The token exchange request containing the authorization code, redirect URI,
+ *                  code verifier (for PKCE), and client credentials
+ * @returns A `TokenResponse` with the exchanged tokens on success, or an error response
+ *          containing `error` and `error_description` on failure
+ *
+ * @note This function sends the request as `application/x-www-form-urlencoded` data as required
+ *       by the OAuth 2.0 specification for token endpoint requests.
+ */
 export async function exchangeToken(request: TokenRequest): Promise<TokenResponse> {
     const validatedData = tokenRequestSchema.parse(request);
 
@@ -267,4 +317,34 @@ export async function exchangeToken(request: TokenRequest): Promise<TokenRespons
 
     const result = tokenResponseSchema.parse(response.data);
     return result;
+}
+
+/**
+ * Refreshes the OAuth access token using the backend session cookie.
+ *
+ * Sends a form-encoded refresh request (grant_type=refresh_token) to the token endpoint and
+ * relies on the backend's HTTP-only session cookie for authentication when a refresh token value
+ * is not provided by the client.
+ *
+ * @returns A `TokenResponse` containing `access_token`, `refresh_token`, `token_type`, and `expires_in` on success; on failure an object with `error` and `error_description`.
+ */
+export async function refreshAccessToken(): Promise<TokenResponse> {
+    const formData = new URLSearchParams();
+    formData.append("grant_type", "refresh_token");
+    formData.append("client_id", OIDC_CONFIG.client_id);
+
+    const response = await GeneralClient.post<TokenResponse>("/oauth/token", formData.toString(), {
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    });
+
+    if (!response.success) {
+        return {
+            error: response.error || "refresh_failed",
+            error_description: response.errorDescription || "Failed to refresh token via cookie",
+        };
+    }
+
+    return tokenResponseSchema.parse(response.data);
 }

@@ -3,6 +3,8 @@
 export default class LocalStorageTokenService {
     private constructor() {}
     private static readonly OIDC_CODE_VERIFIER_KEY = "Authly-OIDC-Verifier";
+    private static readonly OIDC_STATE_KEY = "Authly-OIDC-State";
+    private static readonly ACCESS_TOKEN_KEY = "Authly-Access-Token";
 
     private static getItem(key: string): string | null {
         try {
@@ -47,7 +49,25 @@ export default class LocalStorageTokenService {
         this.setItem(this.OIDC_CODE_VERIFIER_KEY, verifier);
     }
 
+    public static get oidcState(): string | null {
+        return this.getItem(this.OIDC_STATE_KEY);
+    }
+
+    public static setOidcState(state: string) {
+        this.setItem(this.OIDC_STATE_KEY, state);
+    }
+
+    public static get accessToken(): string | null {
+        return this.getItem(this.ACCESS_TOKEN_KEY);
+    }
+
+    public static setAccessToken(token: string) {
+        this.setItem(this.ACCESS_TOKEN_KEY, token);
+    }
+
     public static clear() {
         this.removeItem(this.OIDC_CODE_VERIFIER_KEY);
+        this.removeItem(this.OIDC_STATE_KEY);
+        this.removeItem(this.ACCESS_TOKEN_KEY);
     }
 }

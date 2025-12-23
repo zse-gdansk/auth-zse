@@ -1,4 +1,6 @@
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { OIDC_CONFIG } from "./config";
+import LocalStorageTokenService from "./globals/client/LocalStorageTokenService";
 
 export interface ValidationError {
     error: string;
@@ -206,7 +208,10 @@ export function generateCodeVerifier(length: number = 64): string {
 }
 
 /**
- * Generates a code challenge from a code verifier using SHA-256
+ * Generates the PKCE code challenge for a given code verifier using SHA-256.
+ *
+ * @param codeVerifier - The PKCE code verifier string
+ * @returns The Base64URL-encoded SHA-256 digest of `codeVerifier`, without padding
  */
 export async function generateCodeChallenge(codeVerifier: string): Promise<string> {
     const encoder = new TextEncoder();
@@ -218,6 +223,32 @@ export async function generateCodeChallenge(codeVerifier: string): Promise<strin
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
         .replace(/=+$/, "");
+}
+
+/**
+ * Starts the OIDC Authorization Code flow with PKCE by generating state and a code verifier, persisting them, and redirecting the browser to the authorization endpoint.
+ *
+ * The function creates a PKCE code challenge from the verifier, stores the state and verifier via LocalStorageTokenService, builds authorization parameters from OIDC_CONFIG, and navigates to the authorize endpoint.
+ */
+export async function loginWithRedirect(): Promise<void> {
+    const state = generateCodeVerifier(32);
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    LocalStorageTokenService.setOidcState(state);
+    LocalStorageTokenService.setOidcCodeVerifier(codeVerifier);
+
+    const params = new URLSearchParams({
+        client_id: OIDC_CONFIG.client_id,
+        redirect_uri: OIDC_CONFIG.redirect_uri,
+        response_type: OIDC_CONFIG.response_type,
+        scope: OIDC_CONFIG.scope,
+        state: state,
+        code_challenge: codeChallenge,
+        code_challenge_method: "s256",
+    });
+
+    redirectToAuthorize(params.toString());
 }
 
 /**

@@ -127,7 +127,7 @@ func (s *Service) GenerateIDToken(sub, audience, nonce string, authTime time.Tim
 	// Add additional claims (profile, email, etc.)
 	for k, v := range claims {
 		if reservedClaims[k] {
-			return "", fmt.Errorf("cannot override reserved claim: %s", k)
+			continue
 		}
 		builder.Claim(k, v)
 	}
@@ -166,7 +166,7 @@ func (s *Service) Login(username, password, userAgent, ip string) (*LoginRespons
 		return nil, ErrInvalidCredentials
 	}
 
-	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, nil, 24*time.Hour*30)
+	sid, secret, err := s.Sessions.Create(u.ID, userAgent, ip, nil, 30 * 24 * time.Hour)
 	if err != nil {
 		return nil, err
 	}

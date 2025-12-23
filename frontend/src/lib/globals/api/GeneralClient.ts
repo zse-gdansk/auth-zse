@@ -6,6 +6,10 @@ import {
     type ErrorResponse,
     type OIDCErrorResponse,
 } from "./interfaces/IRequestResponsePayload";
+import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
+import { OIDC_CONFIG } from "@/authly/lib/config";
+
+let refreshPromise: Promise<string | null> | null = null;
 
 /**
  * Determines whether a backend response matches the SuccessResponse shape.
@@ -323,6 +327,82 @@ export default class GeneralClient extends BaseClient {
                 timeout: 10000,
                 withCredentials: true,
             });
+
+            // Add request interceptor to attach bearer token
+            GeneralClient.axiosInstance.interceptors.request.use(
+                (config) => {
+                    const token = LocalStorageTokenService.accessToken;
+                    if (token) {
+                        config.headers.Authorization = `Bearer ${token}`;
+                    }
+                    return config;
+                },
+                (error) => {
+                    return Promise.reject(error);
+                },
+            );
+
+            GeneralClient.axiosInstance.interceptors.response.use(
+                (response) => response,
+                async (error: AxiosError) => {
+                    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+                    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+                        if (
+                            originalRequest.url?.includes("/oauth/token") ||
+                            originalRequest.url?.includes("/auth/me") ||
+                            originalRequest.url?.includes("/auth/login")
+                        ) {
+                            return Promise.reject(error);
+                        }
+
+                        originalRequest._retry = true;
+
+                        try {
+                            if (!refreshPromise) {
+                                refreshPromise = (async () => {
+                                    const formData = new URLSearchParams();
+                                    formData.append("grant_type", "refresh_token");
+                                    formData.append("client_id", OIDC_CONFIG.client_id);
+
+                                    const response = await axios.post(
+                                        `${process.env.NEXT_PUBLIC_API_ENDPOINT_URL}/oauth/token`,
+                                        formData.toString(),
+                                        {
+                                            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                            withCredentials: true,
+                                        },
+                                    );
+
+                                    if (response.data && response.data.access_token) {
+                                        LocalStorageTokenService.setAccessToken(response.data.access_token);
+                                        return response.data.access_token;
+                                    }
+                                    return null;
+                                })().finally(() => {
+                                    refreshPromise = null;
+                                });
+                            }
+
+                            const newToken = await refreshPromise;
+
+                            if (newToken) {
+                                if (originalRequest.headers) {
+                                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                                }
+                                return GeneralClient.axiosInstance!(originalRequest);
+                            } else {
+                                throw new Error("Refresh failed");
+                            }
+                        } catch (refreshError) {
+                            LocalStorageTokenService.clear();
+                            return Promise.reject(refreshError);
+                        }
+                    }
+
+                    return Promise.reject(error);
+                },
+            );
         }
         return GeneralClient.axiosInstance;
     }

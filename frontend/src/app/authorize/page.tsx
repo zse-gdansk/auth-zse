@@ -1,12 +1,11 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import ConsentScreen from "@/authly/components/authorize/ConsentScreen";
 import { validateAuthorizationParams, buildErrorRedirect } from "@/authly/lib/oidc";
-import { isApiError } from "@/authly/lib/api";
-import { useAuthStatus } from "@/authly/lib/hooks/useAuth";
+import { isApiError, checkIdPSession } from "@/authly/lib/api";
 import { useValidateAuthorization, useConfirmAuthorization } from "@/authly/lib/hooks/useOidc";
 
 interface ErrorState {
@@ -22,25 +21,33 @@ type AuthPageState =
     | { type: "redirecting" };
 
 /**
- * Render the authorize page content and drive validation, consent, and redirect flows for an OIDC authorization request.
+ * Render the OIDC authorization page and manage validation, consent, and redirect flows.
  *
- * Reads OIDC query parameters, validates the client and requested scopes, checks authentication status, and renders
- * one of: a validating/redirecting message, an error view (optionally with a return-to-app redirect), or a consent
- * screen. Also handles approve and deny actions producing the appropriate redirects.
+ * Parses OIDC query parameters, validates the client and requested scopes, checks the user's session,
+ * and presents a validating message, an error view (optionally with a return-to-app redirect), a consent screen,
+ * or redirects to the login flow as appropriate.
  *
- * @returns The JSX for the authorization page or `null` when nothing should be rendered
+ * @returns The JSX for the authorization page, or `null` when nothing should be rendered
  */
 function AuthorizePageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    const { data: authStatus, isLoading: isCheckingAuth } = useAuthStatus();
+    const [hasSession, setHasSession] = useState<boolean | null>(null);
     const {
         data: clientValidation,
         isLoading: isValidatingClient,
         error: validationError,
     } = useValidateAuthorization(searchParams);
     const confirmMutation = useConfirmAuthorization();
+
+    useEffect(() => {
+        const check = async () => {
+            const session = await checkIdPSession();
+            setHasSession(session);
+        };
+        check();
+    }, []);
 
     const validationParams = useMemo(() => validateAuthorizationParams(searchParams), [searchParams]);
 
@@ -65,7 +72,7 @@ function AuthorizePageContent() {
             };
         }
 
-        if (isValidatingClient || isCheckingAuth) {
+        if (isValidatingClient || hasSession === null) {
             return { type: "validating" };
         }
 
@@ -112,7 +119,7 @@ function AuthorizePageContent() {
                 };
             }
 
-            if (authStatus?.authenticated) {
+            if (hasSession) {
                 return {
                     type: "consent",
                     client: {
@@ -127,7 +134,7 @@ function AuthorizePageContent() {
         }
 
         return { type: "validating" };
-    }, [validationParams, clientValidation, validationError, authStatus, isValidatingClient, isCheckingAuth]);
+    }, [validationParams, clientValidation, validationError, hasSession, isValidatingClient]);
 
     // Handle redirect to login in an effect
     useEffect(() => {
