@@ -9,11 +9,11 @@ import { useAuthStatus } from "@/authly/lib/hooks/useAuth";
 import { loginWithRedirect } from "@/authly/lib/oidc";
 
 /**
- * Renders the top navigation bar with responsive layout, scroll-aware styling, mobile collapse behavior, and authentication-aware CTAs.
+ * Top navigation bar that adapts styling on scroll, switches between desktop and mobile layouts, and updates CTAs based on authentication state.
  *
- * The component updates its visual style when the page is scrolled, shows a desktop navigation and CTA area, and provides a collapsible mobile menu. CTA buttons and menu actions adapt based on authentication status.
+ * Renders brand/logo, navigational links (with external links opening in a new tab), desktop CTA buttons when space permits, and a collapsible mobile menu that closes on link/action. Mobile and desktop SIGN IN actions invoke the authentication redirect; other CTAs navigate to their target routes.
  *
- * @returns A JSX element representing the navigation bar.
+ * @returns A JSX element representing the top navigation bar.
  */
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);

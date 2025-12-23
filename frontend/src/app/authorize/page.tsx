@@ -21,13 +21,13 @@ type AuthPageState =
     | { type: "redirecting" };
 
 /**
- * Render the authorize page content and drive validation, consent, and redirect flows for an OIDC authorization request.
+ * Render the OIDC authorization page and manage validation, consent, and redirect flows.
  *
- * Reads OIDC query parameters, validates the client and requested scopes, checks authentication status, and renders
- * one of: a validating/redirecting message, an error view (optionally with a return-to-app redirect), or a consent
- * screen. Also handles approve and deny actions producing the appropriate redirects.
+ * Parses OIDC query parameters, validates the client and requested scopes, checks the user's session,
+ * and presents a validating message, an error view (optionally with a return-to-app redirect), a consent screen,
+ * or redirects to the login flow as appropriate.
  *
- * @returns The JSX for the authorization page or `null` when nothing should be rendered
+ * @returns The JSX for the authorization page, or `null` when nothing should be rendered
  */
 function AuthorizePageContent() {
     const searchParams = useSearchParams();

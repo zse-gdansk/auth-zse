@@ -208,7 +208,10 @@ export function generateCodeVerifier(length: number = 64): string {
 }
 
 /**
- * Generates a code challenge from a code verifier using SHA-256
+ * Generates the PKCE code challenge for a given code verifier using SHA-256.
+ *
+ * @param codeVerifier - The PKCE code verifier string
+ * @returns The Base64URL-encoded SHA-256 digest of `codeVerifier`, without padding
  */
 export async function generateCodeChallenge(codeVerifier: string): Promise<string> {
     const encoder = new TextEncoder();
@@ -223,11 +226,9 @@ export async function generateCodeChallenge(codeVerifier: string): Promise<strin
 }
 
 /**
- * Initiates the OpenID Connect (OIDC) Authorization Code flow with Proof Key for Code Exchange (PKCE).
+ * Starts the OIDC Authorization Code flow with PKCE by generating state and a code verifier, persisting them, and redirecting the browser to the authorization endpoint.
  *
- *
- * @returns Promise that resolves when the redirect is initiated. The function never returns
- *          normally as it performs a window location redirect.
+ * The function creates a PKCE code challenge from the verifier, stores the state and verifier via LocalStorageTokenService, builds authorization parameters from OIDC_CONFIG, and navigates to the authorize endpoint.
  */
 export async function loginWithRedirect(): Promise<void> {
     const state = generateCodeVerifier(32);
