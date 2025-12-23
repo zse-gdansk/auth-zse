@@ -7,7 +7,6 @@ import ConsentScreen from "@/authly/components/authorize/ConsentScreen";
 import { validateAuthorizationParams, buildErrorRedirect } from "@/authly/lib/oidc";
 import { isApiError, checkIdPSession } from "@/authly/lib/api";
 import { useValidateAuthorization, useConfirmAuthorization } from "@/authly/lib/hooks/useOidc";
-import { useMe } from "@/authly/lib/hooks/useAuth";
 
 interface ErrorState {
     title: string;
@@ -34,8 +33,7 @@ function AuthorizePageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    const { data: meResponse, isLoading: isCheckingMe } = useMe();
-    const [idPSession, setIdPSession] = useState<boolean | null>(null);
+    const [hasSession, setHasSession] = useState<boolean | null>(null);
     const {
         data: clientValidation,
         isLoading: isValidatingClient,
@@ -46,13 +44,10 @@ function AuthorizePageContent() {
     useEffect(() => {
         const check = async () => {
             const session = await checkIdPSession();
-            setIdPSession(session);
+            setHasSession(session);
         };
         check();
     }, []);
-
-    const isAuthenticated = !!(meResponse?.success || idPSession);
-    const isAuthLoading = !isAuthenticated && (isCheckingMe || idPSession === null);
 
     const validationParams = useMemo(() => validateAuthorizationParams(searchParams), [searchParams]);
 
@@ -77,7 +72,7 @@ function AuthorizePageContent() {
             };
         }
 
-        if (isValidatingClient || isAuthLoading) {
+        if (isValidatingClient || hasSession === null) {
             return { type: "validating" };
         }
 
@@ -124,7 +119,7 @@ function AuthorizePageContent() {
                 };
             }
 
-            if (isAuthenticated) {
+            if (hasSession) {
                 return {
                     type: "consent",
                     client: {
@@ -139,7 +134,7 @@ function AuthorizePageContent() {
         }
 
         return { type: "validating" };
-    }, [validationParams, clientValidation, validationError, isAuthenticated, isAuthLoading, isValidatingClient]);
+    }, [validationParams, clientValidation, validationError, hasSession, isValidatingClient]);
 
     // Handle redirect to login in an effect
     useEffect(() => {

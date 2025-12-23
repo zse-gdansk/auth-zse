@@ -1,15 +1,15 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
 import { isApiError, checkIdPSession } from "@/authly/lib/api";
 import { loginRequestSchema, type LoginRequest } from "@/authly/lib/schemas/auth/login";
-import { generateCodeVerifier, generateCodeChallenge, loginWithRedirect } from "@/authly/lib/oidc";
+import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
-import { useLogin, useMe } from "@/authly/lib/hooks/useAuth";
+import { useLogin } from "@/authly/lib/hooks/useAuth";
 
 type LoginFormData = {
     username: string;
@@ -35,64 +35,55 @@ function LoginPageContent() {
     });
     const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
     const [apiError, setApiError] = useState<string | null>(null);
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-    const { data: meResponse, isLoading: isCheckingAuth } = useMe();
     const loginMutation = useLogin();
 
-    useEffect(() => {
-        if (isCheckingAuth) return;
+    const performRedirect = useCallback(async () => {
+        const oidcParams = searchParams.get("oidc_params");
+        if (oidcParams) {
+            const handleOidcRedirect = async () => {
+                try {
+                    const decoded = decodeURIComponent(oidcParams);
+                    const params = new URLSearchParams(decoded);
 
-        if (meResponse?.success) {
-            const oidcParams = searchParams.get("oidc_params");
-            if (oidcParams) {
-                const handleOidcRedirect = async () => {
-                    try {
-                        const decoded = decodeURIComponent(oidcParams);
-                        const params = new URLSearchParams(decoded);
+                    if (!params.has("code_challenge")) {
+                        const verifier = generateCodeVerifier();
+                        const challenge = await generateCodeChallenge(verifier);
 
-                        if (!params.has("code_challenge")) {
-                            const verifier = generateCodeVerifier();
-                            const challenge = await generateCodeChallenge(verifier);
+                        params.set("code_challenge", challenge);
+                        params.set("code_challenge_method", "S256");
 
-                            params.set("code_challenge", challenge);
-                            params.set("code_challenge_method", "S256");
-
-                            LocalStorageTokenService.setOidcCodeVerifier(verifier);
-                        }
-
-                        const authorizeUrl = new URL("/authorize", window.location.origin);
-                        params.forEach((value, key) => {
-                            authorizeUrl.searchParams.set(key, value);
-                        });
-                        router.push(authorizeUrl.toString());
-                    } catch (error) {
-                        console.error("Failed to process OIDC parameters:", error);
-                        router.push("/authorize?" + oidcParams);
+                        LocalStorageTokenService.setOidcCodeVerifier(verifier);
                     }
-                };
-                handleOidcRedirect();
-            } else {
-                router.push("/");
-            }
-            return;
-        }
 
+                    const authorizeUrl = new URL("/authorize", window.location.origin);
+                    params.forEach((value, key) => {
+                        authorizeUrl.searchParams.set(key, value);
+                    });
+                    router.push(authorizeUrl.toString());
+                } catch (error) {
+                    console.error("Failed to process OIDC parameters:", error);
+                    router.push("/authorize?" + oidcParams);
+                }
+            };
+            await handleOidcRedirect();
+        } else {
+            router.push("/");
+        }
+    }, [searchParams, router]);
+
+    useEffect(() => {
         const checkSession = async () => {
             const hasSession = await checkIdPSession();
             if (hasSession) {
-                const oidcParams = searchParams.get("oidc_params");
-                if (oidcParams) {
-                    loginWithRedirect();
-                } else {
-                    loginWithRedirect();
-                }
+                await performRedirect();
+            } else {
+                setIsCheckingSession(false);
             }
         };
-
-        if (!loginMutation.isPending) {
-            checkSession();
-        }
-    }, [meResponse, isCheckingAuth, router, searchParams, loginMutation.isPending]);
+        checkSession();
+    }, [performRedirect]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -118,8 +109,10 @@ function LoginPageContent() {
         };
 
         loginMutation.mutate(requestData, {
-            onSuccess: (response) => {
-                if (!response.success) {
+            onSuccess: async (response) => {
+                if (response.success) {
+                    await performRedirect();
+                } else {
                     setApiError(response.error || "Login failed");
                 }
             },
@@ -148,7 +141,7 @@ function LoginPageContent() {
 
     const isLoading = loginMutation.isPending;
 
-    if (isCheckingAuth) {
+    if (isCheckingSession) {
         return (
             <AuthorizeLayout>
                 <div className="flex items-center justify-center py-12">
