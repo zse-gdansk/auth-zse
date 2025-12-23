@@ -25,8 +25,8 @@ function CallbackPageContent() {
             const errorDescription = searchParams.get("error_description");
 
             const storedState = LocalStorageTokenService.oidcState;
-            if (stateParam && storedState && stateParam !== storedState) {
-                setError("State mismatch. Possible CSRF attack detected.");
+            if (!stateParam || !storedState || stateParam !== storedState) {
+                setError("State validation failed. Please try logging in again.");
                 return;
             }
 
