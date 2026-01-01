@@ -9,12 +9,18 @@ export interface SuccessResponse<D = unknown> {
     readonly message?: string;
 }
 
+export interface APIError {
+    readonly code: string;
+    readonly message: string;
+    readonly details?: unknown;
+}
+
 /**
  * Standard ErrorResponse format from backend
  */
 export interface ErrorResponse {
     readonly success: false;
-    readonly error: string;
+    readonly error: string | APIError;
 }
 
 /**
@@ -44,7 +50,7 @@ type IRequestResponsePayload<D = unknown, E = unknown> =
       }
     | {
           readonly success: false;
-          readonly error: string;
+          readonly error: string | APIError;
           readonly errorDescription?: string;
           readonly errorUri?: string;
           readonly rawError: AxiosError<E>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiErrorSchema } from "./login";
 
 /**
  * Schema for user registration request
@@ -42,7 +43,7 @@ export const registerSuccessResponseSchema = z.object({
  */
 export const registerErrorResponseSchema = z.object({
     success: z.literal(false),
-    error: z.string(),
+    error: apiErrorSchema,
 });
 
 /**

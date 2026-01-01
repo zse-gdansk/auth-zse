@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiErrorSchema } from "./login";
 
 /**
  * Schema for /auth/me response
@@ -28,7 +29,7 @@ export const meSuccessResponseSchema = z.object({
  */
 export const meErrorResponseSchema = z.object({
     success: z.literal(false),
-    error: z.string(),
+    error: apiErrorSchema,
 });
 
 /**

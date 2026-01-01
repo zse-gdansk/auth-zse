@@ -4,11 +4,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect, useCallback } from "react";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
-import { isApiError, checkIdPSession } from "@/authly/lib/api";
+import { checkIdPSession } from "@/authly/lib/api";
 import { loginRequestSchema, type LoginRequest } from "@/authly/lib/schemas/auth/login";
 import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
 import { useLogin } from "@/authly/lib/hooks/useAuth";
+import { extractErrorMessage } from "@/authly/lib/utils";
 
 type LoginFormData = {
     username: string;
@@ -120,17 +121,11 @@ function LoginPageContent() {
                         setIsRedirecting(false);
                     }
                 } else {
-                    setApiError(response.error || "Login failed");
+                    setApiError(extractErrorMessage(response.error));
                 }
             },
             onError: (err) => {
-                if (isApiError(err)) {
-                    setApiError(err.error_description || err.error);
-                } else if (err instanceof Error) {
-                    setApiError(err.message);
-                } else {
-                    setApiError("An error occurred");
-                }
+                setApiError(extractErrorMessage(err));
             },
         });
     };

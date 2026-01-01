@@ -4,11 +4,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect, useRef } from "react";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
-import { isApiError } from "@/authly/lib/api";
 import { registerFormSchema, registerRequestSchema, type RegisterFormData } from "@/authly/lib/schemas/auth/register";
 import { generateCodeVerifier, generateCodeChallenge } from "@/authly/lib/oidc";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
 import { useRegister, useMe } from "@/authly/lib/hooks/useAuth";
+import { extractErrorMessage } from "@/authly/lib/utils";
 import { CheckCircle } from "lucide-react";
 
 /**
@@ -115,7 +115,7 @@ function RegisterPageContent() {
         registerMutation.mutate(requestData, {
             onSuccess: (response) => {
                 if (!response.success) {
-                    setApiError(response.error || "Registration failed");
+                    setApiError(extractErrorMessage(response.error));
                 } else {
                     setSuccessMessage("Account created successfully! Redirecting to login...");
                     setTimeout(() => {
@@ -125,13 +125,7 @@ function RegisterPageContent() {
                 }
             },
             onError: (err) => {
-                let errorMessage = "An error occurred";
-                if (isApiError(err)) {
-                    errorMessage = err.error_description || err.error;
-                } else if (err instanceof Error) {
-                    errorMessage = err.message;
-                }
-                setApiError(errorMessage);
+                setApiError(extractErrorMessage(err));
             },
         });
     };

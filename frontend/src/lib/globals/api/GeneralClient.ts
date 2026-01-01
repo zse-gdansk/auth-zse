@@ -5,6 +5,7 @@ import {
     type SuccessResponse,
     type ErrorResponse,
     type OIDCErrorResponse,
+    type APIError,
 } from "./interfaces/IRequestResponsePayload";
 import LocalStorageTokenService from "@/authly/lib/globals/client/LocalStorageTokenService";
 import { OIDC_CONFIG } from "@/authly/lib/config";
@@ -59,7 +60,7 @@ function parseBackendResponse<D>(response: AxiosResponse<BackendResponse<D>>): {
     success: boolean;
     data?: D;
     message?: string;
-    error?: string;
+    error?: string | APIError;
     errorDescription?: string;
     errorUri?: string;
 } {
@@ -110,7 +111,10 @@ export const getApiErrorMessage = (error: AxiosError): string => {
     }
 
     if (isErrorResponse(data)) {
-        return data.error;
+        if (typeof data.error === "object" && data.error !== null && "message" in data.error) {
+            return (data.error as APIError).message;
+        }
+        return data.error as string;
     }
 
     const legacyError = (data as { readonly error?: { readonly message?: string } })?.error;
@@ -151,12 +155,13 @@ export abstract class BaseClient {
                     rawResponse: axiosResponse,
                 };
             } else {
+                const errorMessage = typeof parsed.error === "object" ? parsed.error.message : parsed.error;
                 return {
                     success: false,
                     error: parsed.error ?? "An error occurred",
                     errorDescription: parsed.errorDescription,
                     errorUri: parsed.errorUri,
-                    rawError: new AxiosError(parsed.error) as AxiosError<E>,
+                    rawError: new AxiosError(errorMessage) as AxiosError<E>,
                 };
             }
         } catch (error) {
@@ -234,12 +239,13 @@ export abstract class BaseClient {
                     rawResponse: axiosResponse,
                 };
             } else {
+                const errorMessage = typeof parsed.error === "object" ? parsed.error.message : parsed.error;
                 return {
                     success: false,
                     error: parsed.error ?? "An error occurred",
                     errorDescription: parsed.errorDescription,
                     errorUri: parsed.errorUri,
-                    rawError: new AxiosError(parsed.error) as AxiosError<D>,
+                    rawError: new AxiosError(errorMessage) as AxiosError<D>,
                 };
             }
         } catch (error) {
