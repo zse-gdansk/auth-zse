@@ -78,12 +78,20 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 func (h *Handler) Me(c *fiber.Ctx) error {
 	identity, ok := c.Locals(IdentityKey).(*Identity)
 	if !ok || identity == nil {
-		return utils.ErrorResponse(c, "not_authenticated", fiber.StatusUnauthorized)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"NOT_AUTHENTICATED",
+			"You must be logged in to access this resource",
+			fiber.StatusUnauthorized,
+		))
 	}
 
 	user, err := h.userService.GetUserInfo(identity.UserID)
 	if err != nil {
-		return utils.ErrorResponse(c, "user_not_found", fiber.StatusNotFound)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"USER_NOT_FOUND",
+			"User associated with this session could not be found",
+			fiber.StatusNotFound,
+		))
 	}
 
 	permissions, err := h.permissionService.BuildScopes(identity.UserID)

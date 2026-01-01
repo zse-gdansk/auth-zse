@@ -26,16 +26,24 @@ func Start(cfg *config.Config) error {
 	app := fiber.New(fiber.Config{
 		BodyLimit: 10 * 1024 * 1024, // 10MB
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			message := "Internal Server Error"
+			if apiErr, ok := err.(*utils.APIError); ok {
+				return utils.ErrorResponse(c, apiErr)
+			}
 
 			var e *fiber.Error
 			if errors.As(err, &e) {
-				code = e.Code
-				message = e.Message
+				return utils.ErrorResponse(c, utils.NewAPIError(
+					"HTTP_ERROR",
+					e.Message,
+					e.Code,
+				))
 			}
 
-			return utils.ErrorResponse(c, message, code)
+			return utils.ErrorResponse(c, utils.NewAPIError(
+				"INTERNAL_SERVER_ERROR",
+				"An unexpected error occurred",
+				fiber.StatusInternalServerError,
+			))
 		},
 	})
 
