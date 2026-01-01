@@ -10,10 +10,10 @@ export const registerRequestSchema = z.object({
     username: z.string().min(3).max(50),
     password: z
         .string()
-        .min(8, "Password must be at least 8 characters long")
+        .min(8, "Hasło musi mieć przynajmniej 8 znaków")
         .max(128)
         .regex(/[!@#$%^&*(),.?":{}|<>]/, {
-            message: "Password must contain at least one special character",
+            message: "Hasło musi zawierać przynajmniej jeden znak specjalny",
         }),
 });
 
@@ -66,15 +66,15 @@ export const registerFormSchema = z
         username: z.string().min(3).max(50),
         password: z
             .string()
-            .min(8, "Password must be at least 8 characters long")
+            .min(8, "Hasło musi mieć przynajmniej 8 znaków")
             .max(128)
             .regex(/[!@#$%^&*(),.?":{}|<>]/, {
-                message: "Password must contain at least one special character",
+                message: "Hasło musi zawierać przynajmniej jeden znak specjalny",
             }),
         confirmPassword: z.string(),
     })
     .refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords do not match",
+        message: "Hasła nie pasują do siebie",
         path: ["confirmPassword"],
     });
 

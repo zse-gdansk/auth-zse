@@ -28,7 +28,7 @@ export const loginRequestSchema = z
             return data.email || data.username;
         },
         {
-            message: "Either email or username must be provided",
+            message: "Należy podać albo email, albo nazwę użytkownika",
         },
     );
 
