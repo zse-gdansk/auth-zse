@@ -85,8 +85,8 @@ function CallbackPageContent() {
             <AuthorizeLayout>
                 <div className="space-y-6">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-red-500">Logowanie nieudane</h2>
-                        <p className="text-sm text-white/60">{error}</p>
+                        <h2 className="text-xl font-semibold text-red-600">Logowanie nieudane</h2>
+                        <p className="text-sm text-gray-500">{error}</p>
                     </div>
 
                     <div className="pt-1">
@@ -102,8 +102,8 @@ function CallbackPageContent() {
     return (
         <AuthorizeLayout>
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/80 border-t-transparent"></div>
-                <p className="text-sm text-white/60">Autoryzowanie...</p>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-900 border-t-transparent"></div>
+                <p className="text-sm text-gray-500">Autoryzowanie...</p>
             </div>
         </AuthorizeLayout>
     );
@@ -118,8 +118,8 @@ export default function CallbackPage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen w-full flex items-center justify-center bg-black">
-                    <div className="text-white/60">Ładowanie...</div>
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+                    <div className="text-gray-500">Ładowanie...</div>
                 </div>
             }
         >
