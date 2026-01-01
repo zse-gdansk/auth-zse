@@ -33,7 +33,7 @@ function CallbackPageContent() {
 
             const storedState = LocalStorageTokenService.oidcState;
             if (!stateParam || !storedState || stateParam !== storedState) {
-                setError("State validation failed. Please try logging in again.");
+                setError("Walidacja stanu nieudana. Spróbuj ponownie zalogować się.");
                 return;
             }
 
@@ -43,13 +43,13 @@ function CallbackPageContent() {
             }
 
             if (!code) {
-                setError("No authorization code found in URL");
+                setError("Nie znaleziono kodu autoryzacyjnego w URL.");
                 return;
             }
 
             const codeVerifier = LocalStorageTokenService.oidcCodeVerifier;
             if (!codeVerifier) {
-                setError("No code verifier found. Please try logging in again.");
+                setError("Nie znaleziono verifier kodu. Spróbuj ponownie zalogować się.");
                 return;
             }
 
@@ -73,7 +73,7 @@ function CallbackPageContent() {
                 }
             } catch (err) {
                 console.error("Token exchange failed", err);
-                setError("An unexpected error occurred during token exchange.");
+                setError("Wystąpił nieoczekiwany błąd podczas wymiany tokenów.");
             }
         };
 
@@ -85,13 +85,13 @@ function CallbackPageContent() {
             <AuthorizeLayout>
                 <div className="space-y-6">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-red-500">Authentication Failed</h2>
+                        <h2 className="text-xl font-semibold text-red-500">Logowanie nieudane</h2>
                         <p className="text-sm text-white/60">{error}</p>
                     </div>
 
                     <div className="pt-1">
                         <Button fullWidth variant="primary" onClick={() => router.push("/auth/login")}>
-                            Back to Login
+                            Wróć do logowania
                         </Button>
                     </div>
                 </div>
@@ -103,7 +103,7 @@ function CallbackPageContent() {
         <AuthorizeLayout>
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/80 border-t-transparent"></div>
-                <p className="text-sm text-white/60">Authenticating...</p>
+                <p className="text-sm text-white/60">Autoryzowanie...</p>
             </div>
         </AuthorizeLayout>
     );
@@ -119,7 +119,7 @@ export default function CallbackPage() {
         <Suspense
             fallback={
                 <div className="min-h-screen w-full flex items-center justify-center bg-black">
-                    <div className="text-white/60">Loading...</div>
+                    <div className="text-white/60">Ładowanie...</div>
                 </div>
             }
         >

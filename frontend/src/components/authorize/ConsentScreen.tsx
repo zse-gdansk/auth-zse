@@ -31,17 +31,18 @@ export default function ConsentScreen({
     isLoading = false,
 }: ConsentScreenProps) {
     const scopeDescriptions: Record<string, string> = {
-        openid: "Access your identity",
-        profile: "Access your profile information",
-        email: "Access your email address",
+        openid: "Dostęp do Twojej tożsamości",
+        profile: "Dostęp do informacji o Twoim profilu",
+        email: "Dostęp do Twojego adresu e-mail",
     };
 
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-gray-900">Authorize Application</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Autoryzuj aplikację</h2>
                 <p className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-900">{clientName}</span> wants to access your account
+                    Aplikacja <span className="font-medium text-gray-900">{clientName}</span> chce uzyskać dostęp do
+                    Twojego konta
                 </p>
             </div>
 
@@ -54,7 +55,7 @@ export default function ConsentScreen({
 
             {scopes.length > 0 && (
                 <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-900">This application will be able to:</h3>
+                    <h3 className="text-sm font-medium text-gray-900">Ta aplikacja będzie mogła:</h3>
                     <ul className="space-y-2">
                         {scopes.map((scope) => (
                             <li key={scope} className="flex items-start gap-2 text-sm text-gray-700">
@@ -68,10 +69,10 @@ export default function ConsentScreen({
 
             <div className="flex gap-3 pt-2">
                 <Button fullWidth variant="secondary" onClick={onDeny} disabled={isLoading}>
-                    Deny
+                    Odmów
                 </Button>
                 <Button fullWidth variant="primary" onClick={onApprove} disabled={isLoading}>
-                    {isLoading ? "Authorizing..." : "Approve"}
+                    {isLoading ? "Autoryzowanie..." : "Zatwierdź"}
                 </Button>
             </div>
         </div>

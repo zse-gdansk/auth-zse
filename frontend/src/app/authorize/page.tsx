@@ -56,8 +56,8 @@ function AuthorizePageContent() {
             return {
                 type: "error",
                 error: {
-                    title: "Invalid Request",
-                    message: validationParams.error!.error_description || "The authorization request is invalid",
+                    title: "Nieprawidłowe żądanie",
+                    message: validationParams.error!.error_description || "Żądanie autoryzacji jest nieprawidłowe",
                 },
             };
         }
@@ -66,8 +66,8 @@ function AuthorizePageContent() {
             return {
                 type: "error",
                 error: {
-                    title: "Error",
-                    message: validationError instanceof Error ? validationError.message : "Validation failed",
+                    title: "Błąd",
+                    message: validationError instanceof Error ? validationError.message : "Walidacja nieudana",
                 },
             };
         }
@@ -81,8 +81,10 @@ function AuthorizePageContent() {
                 return {
                     type: "error",
                     error: {
-                        title: "Invalid Client",
-                        message: clientValidation.error_description || "The client application is invalid or inactive",
+                        title: "Nieprawidłowy klient",
+                        message:
+                            clientValidation.error_description ||
+                            "Aplikacja kliencka jest nieprawidłowa lub nieaktywna",
                     },
                 };
             }
@@ -94,8 +96,8 @@ function AuthorizePageContent() {
                 return {
                     type: "error",
                     error: {
-                        title: "Invalid Redirect URI",
-                        message: "The redirect URI is not registered for this application",
+                        title: "Nieprawidłowy adres URI przekierowania",
+                        message: "Adres URI przekierowania nie jest zarejestrowany dla tej aplikacji",
                     },
                 };
             }
@@ -106,14 +108,14 @@ function AuthorizePageContent() {
             if (invalidScopes.length > 0) {
                 const errorRedirect = buildErrorRedirect(params.redirect_uri, {
                     error: "invalid_scope",
-                    error_description: `Invalid scopes: ${invalidScopes.join(", ")}`,
+                    error_description: `Nieprawidłowe zakresy: ${invalidScopes.join(", ")}`,
                     state: params.state,
                 });
                 return {
                     type: "error",
                     error: {
-                        title: "Invalid Scopes",
-                        message: `The following scopes are not allowed: ${invalidScopes.join(", ")}`,
+                        title: "Nieprawidłowe zakresy",
+                        message: `Następujące zakresy nie są dozwolone: ${invalidScopes.join(", ")}`,
                         redirect: errorRedirect,
                     },
                 };
@@ -150,7 +152,7 @@ function AuthorizePageContent() {
             oidcParams.set("code_challenge_method", params.code_challenge_method);
 
             const encodedParams = encodeURIComponent(oidcParams.toString());
-            router.push(`/login?oidc_params=${encodedParams}`);
+            router.push(`/auth/login?oidc_params=${encodedParams}`);
         }
     }, [state.type, validationParams.params, router]);
 
@@ -178,7 +180,7 @@ function AuthorizePageContent() {
                             error: !response.success ? response.error : "server_error",
                             error_description:
                                 (!response.success && response.error_description) ||
-                                "Failed to generate authorization code",
+                                "Nie udało się wygenerować kodu autoryzacyjnego",
                             state: params.state,
                         });
                         window.location.href = errorRedirect;
@@ -186,7 +188,7 @@ function AuthorizePageContent() {
                 },
                 onError: (err) => {
                     let error = "server_error";
-                    let errorDescription = "An error occurred during authorization";
+                    let errorDescription = "Wystąpił błąd podczas autoryzacji";
 
                     if (isApiError(err)) {
                         error = err.error;
@@ -212,7 +214,7 @@ function AuthorizePageContent() {
 
         const errorRedirect = buildErrorRedirect(params.redirect_uri, {
             error: "access_denied",
-            error_description: "The user denied the authorization request",
+            error_description: "Użytkownik odrzucił żądanie autoryzacji",
             state: params.state,
         });
         window.location.href = errorRedirect;
@@ -222,8 +224,8 @@ function AuthorizePageContent() {
         return (
             <AuthorizeLayout>
                 <div className="flex items-center justify-center py-12">
-                    <div className="text-white/60">
-                        {state.type === "validating" ? "Validating request..." : "Redirecting to login..."}
+                    <div className="text-gray-500">
+                        {state.type === "validating" ? "Weryfikowanie żądania..." : "Przekierowywanie do logowania..."}
                     </div>
                 </div>
             </AuthorizeLayout>
@@ -235,17 +237,17 @@ function AuthorizePageContent() {
             <AuthorizeLayout>
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <h2 className="text-xl font-semibold text-white">{state.error.title}</h2>
-                        <p className="text-sm text-white/60">{state.error.message}</p>
+                        <h2 className="text-xl font-semibold text-gray-900">{state.error.title}</h2>
+                        <p className="text-sm text-gray-500">{state.error.message}</p>
                     </div>
                     {state.error.redirect && (
                         <button
                             onClick={() => {
                                 window.location.href = state.error.redirect!;
                             }}
-                            className="w-full text-center text-xs text-white/50 uppercase tracking-widest hover:text-white/80 transition-colors duration-200 hover:cursor-pointer"
+                            className="w-full text-center text-xs text-gray-500 uppercase tracking-widest hover:text-gray-900 transition-colors duration-200 hover:cursor-pointer"
                         >
-                            Return to application
+                            Powrót do aplikacji
                         </button>
                     )}
                 </div>
@@ -280,8 +282,8 @@ export default function AuthorizePage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen w-full flex items-center justify-center bg-black">
-                    <div className="text-white/60">Loading...</div>
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+                    <div className="text-gray-500">Ładowanie...</div>
                 </div>
             }
         >
