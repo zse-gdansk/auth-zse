@@ -28,11 +28,11 @@ export type ButtonProps = ButtonAsButton | ButtonAsAnchor;
 
 const variantStyles: Record<ButtonVariant, string> = {
     primary:
-        "bg-white text-black hover:bg-white/90 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] border border-white/20",
-    secondary: "bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 border border-white/20",
+        "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg border border-transparent",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-transparent",
     outline:
-        "border border-white/20 text-white hover:bg-white/5 hover:border-white/40 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]",
-    ghost: "text-white/60 hover:text-white hover:bg-white/5 border border-transparent",
+        "border border-gray-200 text-gray-900 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm",
+    ghost: "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -69,7 +69,7 @@ export default function Button({
         "font-medium tracking-widest uppercase",
         "cursor-pointer",
         "transition-all duration-300 ease-out",
-        "focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-black",
+        "focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:ring-offset-2 focus:ring-offset-white",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-current",
         "relative overflow-hidden group",
         variantStyles[variant],

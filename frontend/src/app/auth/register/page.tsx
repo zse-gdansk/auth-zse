@@ -152,7 +152,7 @@ function RegisterPageContent() {
     if (isCheckingAuth) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-white/60">Loading...</div>
+                <div className="text-gray-500">Loading...</div>
             </div>
         );
     }
@@ -160,18 +160,18 @@ function RegisterPageContent() {
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Create an account</h2>
-                <p className="text-sm text-white/60">Sign up to get started</p>
+                <h2 className="text-xl font-semibold text-gray-900">Create an account</h2>
+                <p className="text-sm text-gray-500">Sign up to get started</p>
             </div>
 
             {successMessage ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center border border-green-200">
                         <CheckCircle className="w-8 h-8 text-green-500" />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-white font-medium">Account created successfully!</p>
-                        <p className="text-sm text-white/40">Redirecting you to the login page...</p>
+                        <p className="text-gray-900 font-medium">Account created successfully!</p>
+                        <p className="text-sm text-gray-500">Redirecting you to the login page...</p>
                     </div>
                 </div>
             ) : (
@@ -251,12 +251,12 @@ function RegisterPageContent() {
                 </form>
             )}
 
-            <div className="pt-2 border-t border-white/5">
-                <p className="text-center text-sm text-white/50 mt-2">
+            <div className="pt-2 border-t border-gray-200">
+                <p className="text-center text-sm text-gray-500 mt-2">
                     Already have an account?{" "}
                     <a
                         href={`/auth/login${searchParams.get("oidc_params") ? `?oidc_params=${encodeURIComponent(searchParams.get("oidc_params")!)}` : ""}`}
-                        className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
+                        className="text-gray-900 hover:text-black font-medium underline underline-offset-4 transition-colors duration-200"
                     >
                         Sign In
                     </a>
@@ -275,8 +275,8 @@ export default function RegisterPage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen w-full flex items-center justify-center bg-black">
-                    <div className="text-white/60">Loading...</div>
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+                    <div className="text-gray-500">Loading...</div>
                 </div>
             }
         >

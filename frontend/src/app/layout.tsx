@@ -18,17 +18,17 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
     title: {
-        default: "Authly",
-        template: "%s · Authly",
+        default: "Zespół Szkół Energetycznych",
+        template: "%s · Zespół Szkół Energetycznych",
     },
     description:
-        "Authly is a self-hosted authentication and authorization platform with OIDC, RBAC, sessions and fine-grained permissions.",
-    applicationName: "Authly",
+        "Zespół Szkół Energetycznych - System autoryzacyjny",
+    applicationName: "Zespół Szkół Energetycznych",
     generator: "Next.js",
-    keywords: ["authentication", "authorization", "oidc", "oauth2", "rbac", "jwt", "identity", "auth service"],
-    authors: [{ name: "Anvoria" }],
-    creator: "Anvoria",
-    publisher: "Anvoria",
+    keywords: ["zse", "zespół szkoły energetycznych"],
+    authors: [{ name: "Zespół Szkół Energetycznych" }],
+    creator: "Zespół Szkół Energetycznych",
+    publisher: "Zespół Szkół Energetycznych",
 };
 
 export const viewport: Viewport = {

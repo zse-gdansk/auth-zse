@@ -151,7 +151,7 @@ function LoginPageContent() {
     if (isCheckingSession) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-white/60">Loading...</div>
+                <div className="text-gray-500">Loading...</div>
             </div>
         );
     }
@@ -159,8 +159,8 @@ function LoginPageContent() {
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Sign in</h2>
-                <p className="text-sm text-white/60">Enter your credentials to continue</p>
+                <h2 className="text-xl font-semibold text-gray-900">Sign in</h2>
+                <p className="text-sm text-gray-500">Enter your credentials to continue</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -195,15 +195,15 @@ function LoginPageContent() {
                 </div>
             </form>
 
-            <div className="pt-2 border-t border-white/5">
-                <p className="text-center text-sm text-white/50 mt-2">
+            <div className="pt-2 border-t border-gray-200">
+                <p className="text-center text-sm text-gray-500 mt-2">
                     Don&apos;t have an account?{" "}
                     {(() => {
                         const oidcParams = searchParams.get("oidc_params");
                         return (
                             <a
                                 href={`/auth/register${oidcParams ? `?oidc_params=${encodeURIComponent(oidcParams)}` : ""}`}
-                                className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
+                                className="text-gray-900 hover:text-black font-medium underline underline-offset-4 transition-colors duration-200"
                             >
                                 Sign Up
                             </a>
@@ -224,8 +224,8 @@ export default function LoginPage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen w-full flex items-center justify-center bg-black">
-                    <div className="text-white/60">Loading...</div>
+                <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+                    <div className="text-gray-500">Loading...</div>
                 </div>
             }
         >

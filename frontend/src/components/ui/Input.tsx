@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <div className="space-y-2 w-full">
                 {label && (
                     <label
-                        className="block text-xs font-medium text-white/60 uppercase tracking-widest ml-1"
+                        className="block text-xs font-medium text-gray-700 uppercase tracking-widest ml-1"
                         htmlFor={inputId}
                     >
                         {label}
@@ -30,11 +30,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     </label>
                 )}
 
-                {description && <p className="text-xs text-white/60 ml-1">{description}</p>}
+                {description && <p className="text-xs text-gray-500 ml-1">{description}</p>}
 
                 <div className={cn("relative", disabled && "opacity-50")}>
                     {prefix && (
-                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-white/50">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                             {prefix}
                         </span>
                     )}
@@ -43,10 +43,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         id={inputId}
                         ref={ref}
                         className={cn(
-                            "flex h-11 w-full border border-white/10 bg-white/5 px-4 text-sm text-white transition-[border-color,background-color] duration-200",
+                            "flex h-11 w-full border border-gray-200 bg-white px-4 text-sm text-gray-900 transition-[border-color,background-color] duration-200",
                             "rounded-none outline-none focus:outline-none",
-                            "placeholder:text-white/30 hover:border-white/20",
-                            "focus-visible:border-white/50 focus-visible:bg-white/10",
+                            "placeholder:text-gray-400 hover:border-gray-300",
+                            "focus-visible:border-gray-900 focus-visible:bg-white",
                             "disabled:cursor-not-allowed disabled:opacity-50",
                             prefix && "pl-10",
                             suffix && "pr-10",
@@ -60,14 +60,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
 
                     {suffix && (
-                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white/50">
+                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
                             {suffix}
                         </span>
                     )}
                 </div>
 
                 {helperText && (
-                    <p className="text-xs text-white/60 ml-1" id={helperId}>
+                    <p className="text-xs text-gray-500 ml-1" id={helperId}>
                         {helperText}
                     </p>
                 )}
