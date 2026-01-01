@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect, useRef } from "react";
-import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
 import { isApiError } from "@/authly/lib/api";
@@ -121,7 +120,7 @@ function RegisterPageContent() {
                     setSuccessMessage("Account created successfully! Redirecting to login...");
                     setTimeout(() => {
                         const params = searchParams.toString();
-                        router.push("/login" + (params ? `?${params}` : ""));
+                        router.push("/auth/login" + (params ? `?${params}` : ""));
                     }, 2000);
                 }
             },
@@ -152,122 +151,118 @@ function RegisterPageContent() {
 
     if (isCheckingAuth) {
         return (
-            <AuthorizeLayout>
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-white/60">Loading...</div>
-                </div>
-            </AuthorizeLayout>
+            <div className="flex items-center justify-center py-12">
+                <div className="text-white/60">Loading...</div>
+            </div>
         );
     }
 
     return (
-        <AuthorizeLayout>
-            <div className="space-y-6">
-                <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-white">Create an account</h2>
-                    <p className="text-sm text-white/60">Sign up to get started</p>
-                </div>
-
-                {successMessage ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
-                        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                            <CheckCircle className="w-8 h-8 text-green-500" />
-                        </div>
-                        <div className="space-y-2">
-                            <p className="text-white font-medium">Account created successfully!</p>
-                            <p className="text-sm text-white/40">Redirecting you to the login page...</p>
-                        </div>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="First Name"
-                                type="text"
-                                placeholder="John"
-                                value={formData.first_name}
-                                onChange={(e) => updateField("first_name", e.target.value)}
-                                disabled={isLoading}
-                                error={errors.first_name}
-                            />
-
-                            <Input
-                                label="Last Name"
-                                type="text"
-                                placeholder="Doe"
-                                value={formData.last_name}
-                                onChange={(e) => updateField("last_name", e.target.value)}
-                                disabled={isLoading}
-                                error={errors.last_name}
-                            />
-                        </div>
-
-                        <Input
-                            label="Email"
-                            type="email"
-                            placeholder="name@example.com"
-                            value={formData.email}
-                            onChange={(e) => updateField("email", e.target.value)}
-                            disabled={isLoading}
-                            error={errors.email}
-                        />
-
-                        <Input
-                            label="Username"
-                            type="text"
-                            placeholder="username"
-                            value={formData.username}
-                            onChange={(e) => updateField("username", e.target.value)}
-                            required
-                            disabled={isLoading}
-                            error={errors.username}
-                        />
-
-                        <Input
-                            label="Password"
-                            type="password"
-                            placeholder="••••••••"
-                            value={formData.password}
-                            onChange={(e) => updateField("password", e.target.value)}
-                            required
-                            disabled={isLoading}
-                            error={errors.password}
-                        />
-
-                        <Input
-                            label="Confirm Password"
-                            type="password"
-                            placeholder="••••••••"
-                            value={formData.confirmPassword}
-                            onChange={(e) => updateField("confirmPassword", e.target.value)}
-                            required
-                            disabled={isLoading}
-                            error={errors.confirmPassword}
-                        />
-
-                        {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
-
-                        <div className="pt-1">
-                            <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
-                                {isLoading ? "Creating account..." : "Sign Up"}
-                            </Button>
-                        </div>
-                    </form>
-                )}
-
-                <div className="pt-2 border-t border-white/5">
-                    <p className="text-center text-sm text-white/50 mt-2">
-                        Already have an account?{" "}
-                        <a
-                            href={`/login${searchParams.get("oidc_params") ? `?oidc_params=${encodeURIComponent(searchParams.get("oidc_params")!)}` : ""}`}
-                            className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
-                        >
-                            Sign In
-                        </a>
-                    </p>
-                </div>
+        <div className="space-y-6">
+            <div className="space-y-1">
+                <h2 className="text-xl font-semibold text-white">Create an account</h2>
+                <p className="text-sm text-white/60">Sign up to get started</p>
             </div>
-        </AuthorizeLayout>
+
+            {successMessage ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                        <CheckCircle className="w-8 h-8 text-green-500" />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-white font-medium">Account created successfully!</p>
+                        <p className="text-sm text-white/40">Redirecting you to the login page...</p>
+                    </div>
+                </div>
+            ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            label="First Name"
+                            type="text"
+                            placeholder="John"
+                            value={formData.first_name}
+                            onChange={(e) => updateField("first_name", e.target.value)}
+                            disabled={isLoading}
+                            error={errors.first_name}
+                        />
+
+                        <Input
+                            label="Last Name"
+                            type="text"
+                            placeholder="Doe"
+                            value={formData.last_name}
+                            onChange={(e) => updateField("last_name", e.target.value)}
+                            disabled={isLoading}
+                            error={errors.last_name}
+                        />
+                    </div>
+
+                    <Input
+                        label="Email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={formData.email}
+                        onChange={(e) => updateField("email", e.target.value)}
+                        disabled={isLoading}
+                        error={errors.email}
+                    />
+
+                    <Input
+                        label="Username"
+                        type="text"
+                        placeholder="username"
+                        value={formData.username}
+                        onChange={(e) => updateField("username", e.target.value)}
+                        required
+                        disabled={isLoading}
+                        error={errors.username}
+                    />
+
+                    <Input
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={(e) => updateField("password", e.target.value)}
+                        required
+                        disabled={isLoading}
+                        error={errors.password}
+                    />
+
+                    <Input
+                        label="Confirm Password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={(e) => updateField("confirmPassword", e.target.value)}
+                        required
+                        disabled={isLoading}
+                        error={errors.confirmPassword}
+                    />
+
+                    {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
+
+                    <div className="pt-1">
+                        <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
+                            {isLoading ? "Creating account..." : "Sign Up"}
+                        </Button>
+                    </div>
+                </form>
+            )}
+
+            <div className="pt-2 border-t border-white/5">
+                <p className="text-center text-sm text-white/50 mt-2">
+                    Already have an account?{" "}
+                    <a
+                        href={`/auth/login${searchParams.get("oidc_params") ? `?oidc_params=${encodeURIComponent(searchParams.get("oidc_params")!)}` : ""}`}
+                        className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
+                    >
+                        Sign In
+                    </a>
+                </p>
+            </div>
+        </div>
     );
 }
 
