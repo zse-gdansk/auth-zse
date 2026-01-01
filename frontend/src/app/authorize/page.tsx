@@ -150,7 +150,7 @@ function AuthorizePageContent() {
             oidcParams.set("code_challenge_method", params.code_challenge_method);
 
             const encodedParams = encodeURIComponent(oidcParams.toString());
-            router.push(`/login?oidc_params=${encodedParams}`);
+            router.push(`/auth/login?oidc_params=${encodedParams}`);
         }
     }, [state.type, validationParams.params, router]);
 
