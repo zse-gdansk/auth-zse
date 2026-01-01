@@ -27,11 +27,9 @@ interface ButtonAsAnchor
 export type ButtonProps = ButtonAsButton | ButtonAsAnchor;
 
 const variantStyles: Record<ButtonVariant, string> = {
-    primary:
-        "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg border border-transparent",
+    primary: "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg border border-transparent",
     secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-transparent",
-    outline:
-        "border border-gray-200 text-gray-900 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm",
+    outline: "border border-gray-200 text-gray-900 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm",
     ghost: "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent",
 };
 

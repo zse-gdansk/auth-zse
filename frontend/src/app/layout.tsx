@@ -21,8 +21,7 @@ export const metadata: Metadata = {
         default: "Zespół Szkół Energetycznych",
         template: "%s · Zespół Szkół Energetycznych",
     },
-    description:
-        "Zespół Szkół Energetycznych - System autoryzacyjny",
+    description: "Zespół Szkół Energetycznych - System autoryzacyjny",
     applicationName: "Zespół Szkół Energetycznych",
     generator: "Next.js",
     keywords: ["zse", "zespół szkoły energetycznych"],
