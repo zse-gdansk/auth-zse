@@ -185,10 +185,11 @@ func generateKey(keysPath, kid string, bits int) error {
 	if err != nil {
 		return err
 	}
-	if err := fPub.Close(); err != nil {
+	if err := pem.Encode(fPub, publicKeyPEM); err != nil {
+		fPub.Close()
 		return err
 	}
-	if err := pem.Encode(fPub, publicKeyPEM); err != nil {
+	if err := fPub.Close(); err != nil {
 		return err
 	}
 
