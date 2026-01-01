@@ -106,7 +106,7 @@ function RegisterPageContent() {
         });
 
         if (!requestValidation.success) {
-            setApiError("Invalid request data");
+            setApiError("Nieprawidłowe dane żądania");
             return;
         }
 
@@ -115,9 +115,9 @@ function RegisterPageContent() {
         registerMutation.mutate(requestData, {
             onSuccess: (response) => {
                 if (!response.success) {
-                    setApiError(response.error || "Registration failed");
+                    setApiError(response.error || "Rejestracja nieudana");
                 } else {
-                    setSuccessMessage("Account created successfully! Redirecting to login...");
+                    setSuccessMessage("Konto utworzone pomyślnie! Przekierowywanie do logowania...");
                     setTimeout(() => {
                         const params = searchParams.toString();
                         router.push("/auth/login" + (params ? `?${params}` : ""));
@@ -125,7 +125,7 @@ function RegisterPageContent() {
                 }
             },
             onError: (err) => {
-                let errorMessage = "An error occurred";
+                let errorMessage = "Wystąpił błąd";
                 if (isApiError(err)) {
                     errorMessage = err.error_description || err.error;
                 } else if (err instanceof Error) {
@@ -152,7 +152,7 @@ function RegisterPageContent() {
     if (isCheckingAuth) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-gray-500">Loading...</div>
+                <div className="text-gray-500">Ładowanie...</div>
             </div>
         );
     }
@@ -160,8 +160,8 @@ function RegisterPageContent() {
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-gray-900">Create an account</h2>
-                <p className="text-sm text-gray-500">Sign up to get started</p>
+                <h2 className="text-xl font-semibold text-gray-900">Utwórz konto</h2>
+                <p className="text-sm text-gray-500">Zarejestruj się, aby rozpocząć</p>
             </div>
 
             {successMessage ? (
@@ -170,17 +170,17 @@ function RegisterPageContent() {
                         <CheckCircle className="w-8 h-8 text-green-500" />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-gray-900 font-medium">Account created successfully!</p>
-                        <p className="text-sm text-gray-500">Redirecting you to the login page...</p>
+                        <p className="text-gray-900 font-medium">Konto utworzone pomyślnie!</p>
+                        <p className="text-sm text-gray-500">Przekierowywanie do strony logowania...</p>
                     </div>
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <Input
-                            label="First Name"
+                            label="Imię"
                             type="text"
-                            placeholder="John"
+                            placeholder="Jan"
                             value={formData.first_name}
                             onChange={(e) => updateField("first_name", e.target.value)}
                             disabled={isLoading}
@@ -188,9 +188,9 @@ function RegisterPageContent() {
                         />
 
                         <Input
-                            label="Last Name"
+                            label="Nazwisko"
                             type="text"
-                            placeholder="Doe"
+                            placeholder="Kowalski"
                             value={formData.last_name}
                             onChange={(e) => updateField("last_name", e.target.value)}
                             disabled={isLoading}
@@ -201,7 +201,7 @@ function RegisterPageContent() {
                     <Input
                         label="Email"
                         type="email"
-                        placeholder="name@example.com"
+                        placeholder="nazwa@przyklad.pl"
                         value={formData.email}
                         onChange={(e) => updateField("email", e.target.value)}
                         disabled={isLoading}
@@ -209,9 +209,9 @@ function RegisterPageContent() {
                     />
 
                     <Input
-                        label="Username"
+                        label="Nazwa użytkownika"
                         type="text"
-                        placeholder="username"
+                        placeholder="nazwa użytkownika"
                         value={formData.username}
                         onChange={(e) => updateField("username", e.target.value)}
                         required
@@ -220,7 +220,7 @@ function RegisterPageContent() {
                     />
 
                     <Input
-                        label="Password"
+                        label="Hasło"
                         type="password"
                         placeholder="••••••••"
                         value={formData.password}
@@ -231,7 +231,7 @@ function RegisterPageContent() {
                     />
 
                     <Input
-                        label="Confirm Password"
+                        label="Potwierdź hasło"
                         type="password"
                         placeholder="••••••••"
                         value={formData.confirmPassword}
@@ -245,7 +245,7 @@ function RegisterPageContent() {
 
                     <div className="pt-1">
                         <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
-                            {isLoading ? "Creating account..." : "Sign Up"}
+                            {isLoading ? "Tworzenie konta..." : "Zarejestruj się"}
                         </Button>
                     </div>
                 </form>
@@ -253,12 +253,12 @@ function RegisterPageContent() {
 
             <div className="pt-2 border-t border-gray-200">
                 <p className="text-center text-sm text-gray-500 mt-2">
-                    Already have an account?{" "}
+                    Masz już konto?{" "}
                     <a
                         href={`/auth/login${searchParams.get("oidc_params") ? `?oidc_params=${encodeURIComponent(searchParams.get("oidc_params")!)}` : ""}`}
                         className="text-gray-900 hover:text-black font-medium underline underline-offset-4 transition-colors duration-200"
                     >
-                        Sign In
+                        Zaloguj się
                     </a>
                 </p>
             </div>
@@ -276,7 +276,7 @@ export default function RegisterPage() {
         <Suspense
             fallback={
                 <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-                    <div className="text-gray-500">Loading...</div>
+                    <div className="text-gray-500">Ładowanie...</div>
                 </div>
             }
         >

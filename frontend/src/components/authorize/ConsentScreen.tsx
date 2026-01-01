@@ -39,9 +39,9 @@ export default function ConsentScreen({
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Authorize Application</h2>
-                <p className="text-sm text-white/60">
-                    <span className="font-medium text-white">{clientName}</span> wants to access your account
+                <h2 className="text-xl font-semibold text-gray-900">Authorize Application</h2>
+                <p className="text-sm text-gray-500">
+                    <span className="font-medium text-gray-900">{clientName}</span> wants to access your account
                 </p>
             </div>
 
@@ -54,11 +54,11 @@ export default function ConsentScreen({
 
             {scopes.length > 0 && (
                 <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-white">This application will be able to:</h3>
+                    <h3 className="text-sm font-medium text-gray-900">This application will be able to:</h3>
                     <ul className="space-y-2">
                         {scopes.map((scope) => (
-                            <li key={scope} className="flex items-start gap-2 text-sm text-white/80">
-                                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/40" />
+                            <li key={scope} className="flex items-start gap-2 text-sm text-gray-700">
+                                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gray-300" />
                                 <span>{scopeDescriptions[scope] || scope}</span>
                             </li>
                         ))}
