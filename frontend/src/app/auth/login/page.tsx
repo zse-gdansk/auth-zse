@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect, useCallback } from "react";
-import AuthorizeLayout from "@/authly/components/authorize/AuthorizeLayout";
 import Input from "@/authly/components/ui/Input";
 import Button from "@/authly/components/ui/Button";
 import { isApiError, checkIdPSession } from "@/authly/lib/api";
@@ -151,72 +150,68 @@ function LoginPageContent() {
 
     if (isCheckingSession) {
         return (
-            <AuthorizeLayout>
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-white/60">Loading...</div>
-                </div>
-            </AuthorizeLayout>
+            <div className="flex items-center justify-center py-12">
+                <div className="text-white/60">Loading...</div>
+            </div>
         );
     }
 
     return (
-        <AuthorizeLayout>
-            <div className="space-y-6">
-                <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-white">Sign in</h2>
-                    <p className="text-sm text-white/60">Enter your credentials to continue</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <Input
-                        label="Username"
-                        type="text"
-                        placeholder="username"
-                        value={formData.username}
-                        onChange={(e) => updateField("username", e.target.value)}
-                        required
-                        disabled={isLoading}
-                        error={errors.username}
-                    />
-
-                    <Input
-                        label="Password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={(e) => updateField("password", e.target.value)}
-                        required
-                        disabled={isLoading}
-                        error={errors.password}
-                    />
-
-                    {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
-
-                    <div className="pt-1">
-                        <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
-                            {isLoading ? (isRedirecting ? "Redirecting..." : "Signing in...") : "Sign In"}
-                        </Button>
-                    </div>
-                </form>
-
-                <div className="pt-2 border-t border-white/5">
-                    <p className="text-center text-sm text-white/50 mt-2">
-                        Don&apos;t have an account?{" "}
-                        {(() => {
-                            const oidcParams = searchParams.get("oidc_params");
-                            return (
-                                <a
-                                    href={`/register${oidcParams ? `?oidc_params=${encodeURIComponent(oidcParams)}` : ""}`}
-                                    className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
-                                >
-                                    Sign Up
-                                </a>
-                            );
-                        })()}
-                    </p>
-                </div>
+        <div className="space-y-6">
+            <div className="space-y-1">
+                <h2 className="text-xl font-semibold text-white">Sign in</h2>
+                <p className="text-sm text-white/60">Enter your credentials to continue</p>
             </div>
-        </AuthorizeLayout>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <Input
+                    label="Username"
+                    type="text"
+                    placeholder="username"
+                    value={formData.username}
+                    onChange={(e) => updateField("username", e.target.value)}
+                    required
+                    disabled={isLoading}
+                    error={errors.username}
+                />
+
+                <Input
+                    label="Password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => updateField("password", e.target.value)}
+                    required
+                    disabled={isLoading}
+                    error={errors.password}
+                />
+
+                {apiError && <p className="text-xs font-medium text-red-500">{apiError}</p>}
+
+                <div className="pt-1">
+                    <Button fullWidth variant="primary" type="submit" disabled={isLoading}>
+                        {isLoading ? (isRedirecting ? "Redirecting..." : "Signing in...") : "Sign In"}
+                    </Button>
+                </div>
+            </form>
+
+            <div className="pt-2 border-t border-white/5">
+                <p className="text-center text-sm text-white/50 mt-2">
+                    Don&apos;t have an account?{" "}
+                    {(() => {
+                        const oidcParams = searchParams.get("oidc_params");
+                        return (
+                            <a
+                                href={`/auth/register${oidcParams ? `?oidc_params=${encodeURIComponent(oidcParams)}` : ""}`}
+                                className="text-white/80 hover:text-white font-medium underline underline-offset-4 transition-colors duration-200"
+                            >
+                                Sign Up
+                            </a>
+                        );
+                    })()}
+                </p>
+            </div>
+        </div>
     );
 }
 
