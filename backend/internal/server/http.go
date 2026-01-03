@@ -1,15 +1,21 @@
 package server
 
 import (
+	"errors"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/Anvoria/authly/internal/cache"
 	"github.com/Anvoria/authly/internal/config"
 	"github.com/Anvoria/authly/internal/database"
 	"github.com/Anvoria/authly/internal/migrations"
+	"github.com/Anvoria/authly/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 )
 
 // Start initializes logging, configures the Fiber app (including CORS), connects to the database and Redis, runs migrations, loads environment configuration, registers routes, and starts listening on the configured address.
@@ -17,11 +23,52 @@ import (
 func Start(cfg *config.Config) error {
 	initLogger(cfg.Logging.Level)
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 10 * 1024 * 1024, // 10MB
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			if apiErr, ok := err.(*utils.APIError); ok {
+				return utils.ErrorResponse(c, apiErr)
+			}
+
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				return utils.ErrorResponse(c, utils.NewAPIError(
+					"HTTP_ERROR",
+					e.Message,
+					e.Code,
+				))
+			}
+
+			return utils.ErrorResponse(c, utils.NewAPIError(
+				"INTERNAL_SERVER_ERROR",
+				"An unexpected error occurred",
+				fiber.StatusInternalServerError,
+			))
+		},
+	})
+
+	// Use Helmet for security headers
+	app.Use(helmet.New())
+
+	// Configure Rate Limiting
+	app.Use(limiter.New(limiter.Config{
+		Max:        cfg.Server.RateLimit.Max,
+		Expiration: time.Duration(cfg.Server.RateLimit.Expiration) * time.Second,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return utils.ErrorResponse(c, utils.NewAPIError(
+				"TOO_MANY_REQUESTS",
+				"Too many requests, please try again later.",
+				fiber.StatusTooManyRequests,
+			))
+		},
+	}))
 
 	// Configure CORS
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000,http://localhost:8000",
+		AllowOrigins:     strings.Join(cfg.Server.AllowedOrigins, ","),
 		AllowMethods:     "GET,POST,PUT,DELETE,PATCH,OPTIONS",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,

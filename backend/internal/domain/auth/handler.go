@@ -29,7 +29,11 @@ func NewHandler(s AuthService, userService user.Service, permissionService permi
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var req user.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return utils.ErrorResponse(c, ErrInvalidBody.Error(), fiber.StatusBadRequest)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"INVALID_BODY",
+			"Invalid request body format",
+			fiber.StatusBadRequest,
+		))
 	}
 
 	res, err := h.authService.Login(
@@ -40,7 +44,11 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	)
 
 	if err != nil {
-		return utils.ErrorResponse(c, err.Error(), fiber.StatusUnauthorized)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"INVALID_CREDENTIALS",
+			"Invalid username or password",
+			fiber.StatusUnauthorized,
+		))
 	}
 
 	c.Cookie(&fiber.Cookie{
@@ -61,12 +69,20 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 func (h *Handler) Register(c *fiber.Ctx) error {
 	var req user.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
-		return utils.ErrorResponse(c, ErrInvalidBody.Error(), fiber.StatusBadRequest)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"INVALID_BODY",
+			"Invalid request body format",
+			fiber.StatusBadRequest,
+		))
 	}
 
 	res, err := h.authService.Register(req)
 	if err != nil {
-		return utils.ErrorResponse(c, err.Error(), fiber.StatusBadRequest)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"REGISTRATION_FAILED",
+			err.Error(),
+			fiber.StatusBadRequest,
+		))
 	}
 
 	return utils.SuccessResponse(c, fiber.Map{
@@ -78,12 +94,20 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 func (h *Handler) Me(c *fiber.Ctx) error {
 	identity, ok := c.Locals(IdentityKey).(*Identity)
 	if !ok || identity == nil {
-		return utils.ErrorResponse(c, "not_authenticated", fiber.StatusUnauthorized)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"NOT_AUTHENTICATED",
+			"You must be logged in to access this resource",
+			fiber.StatusUnauthorized,
+		))
 	}
 
 	user, err := h.userService.GetUserInfo(identity.UserID)
 	if err != nil {
-		return utils.ErrorResponse(c, "user_not_found", fiber.StatusNotFound)
+		return utils.ErrorResponse(c, utils.NewAPIError(
+			"USER_NOT_FOUND",
+			"User associated with this session could not be found",
+			fiber.StatusNotFound,
+		))
 	}
 
 	permissions, err := h.permissionService.BuildScopes(identity.UserID)

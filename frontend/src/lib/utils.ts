@@ -10,3 +10,32 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
+
+/**
+ * Extracts a human-readable error message from an error object or string.
+ *
+ * @param error - The error object or string
+ * @returns A string representation of the error
+ */
+export function extractErrorMessage(error: unknown): string {
+    if (typeof error === "string") {
+        return error;
+    }
+
+    if (typeof error === "object" && error !== null) {
+        if ("message" in error && typeof (error as { message: unknown }).message === "string") {
+            return (error as { message: string }).message;
+        }
+        if ("error" in error && typeof (error as { error: unknown }).error === "string") {
+            return (error as { error: string }).error;
+        }
+        if (
+            "error_description" in error &&
+            typeof (error as { error_description: unknown }).error_description === "string"
+        ) {
+            return (error as { error_description: string }).error_description;
+        }
+    }
+
+    return "An unknown error occurred";
+}

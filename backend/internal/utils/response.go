@@ -18,18 +18,45 @@ func SuccessResponse(c *fiber.Ctx, data any, message string, code ...int) error 
 	})
 }
 
-// ErrorResponse sends an error JSON response with a failure flag and message.
-// If an explicit HTTP status code is provided it is used; otherwise 500 Internal Server Error is sent.
-// The JSON body contains the fields "success": false and "error": <message>.
-func ErrorResponse(c *fiber.Ctx, message string, code ...int) error {
-	statusCode := fiber.StatusInternalServerError
-	if len(code) > 0 {
-		statusCode = code[0]
+// ErrorResponse sends an error JSON response.
+// It accepts a string, error, or APIError.
+func ErrorResponse(c *fiber.Ctx, err any, code ...int) error {
+	var apiError *APIError
+
+	switch e := err.(type) {
+	case *APIError:
+		clone := *e
+		apiError = &clone
+	case error:
+		apiError = &APIError{
+			Code:    "UNKNOWN_ERROR",
+			Message: e.Error(),
+			Status:  fiber.StatusInternalServerError,
+		}
+	case string:
+		apiError = &APIError{
+			Code:    "ERROR",
+			Message: e,
+			Status:  fiber.StatusInternalServerError,
+		}
+	default:
+		clone := *ErrInternalServer
+		apiError = &clone
 	}
 
-	return c.Status(statusCode).JSON(fiber.Map{
+	// Override status code if provided
+	if len(code) > 0 {
+		apiError.Status = code[0]
+	}
+
+	// If the status is still 0 (default int), set it to 500
+	if apiError.Status == 0 {
+		apiError.Status = fiber.StatusInternalServerError
+	}
+
+	return c.Status(apiError.Status).JSON(fiber.Map{
 		"success": false,
-		"error":   message,
+		"error":   apiError,
 	})
 }
 

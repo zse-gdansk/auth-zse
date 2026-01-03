@@ -3,11 +3,14 @@ import { z } from "zod";
 /**
  * Schema for API error response
  */
-export const apiErrorSchema = z.object({
-    error: z.string(),
-    error_description: z.string().optional(),
-    error_uri: z.string().optional(),
-});
+export const apiErrorSchema = z.union([
+    z.string(),
+    z.object({
+        code: z.string(),
+        message: z.string(),
+        details: z.unknown().optional(),
+    }),
+]);
 
 /**
  * Type inferred from apiErrorSchema
@@ -19,13 +22,13 @@ export type ApiError = z.infer<typeof apiErrorSchema>;
  */
 export const loginRequestSchema = z
     .object({
-        email: z.email().max(255).optional(),
-        username: z.string().min(3).max(50).optional(),
+        email: z.string().email().max(255).optional().or(z.literal("")),
+        username: z.string().min(3).max(50).optional().or(z.literal("")),
         password: z.string().min(1).max(128),
     })
     .refine(
         (data) => {
-            return data.email || data.username;
+            return (data.email && data.email.length > 0) || (data.username && data.username.length > 0);
         },
         {
             message: "Either email or username must be provided",
@@ -64,7 +67,7 @@ export const loginSuccessResponseSchema = z.object({
  */
 export const loginErrorResponseSchema = z.object({
     success: z.literal(false),
-    error: z.string(),
+    error: apiErrorSchema,
 });
 
 /**
