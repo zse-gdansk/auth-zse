@@ -86,7 +86,35 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
 	return &cfg, nil
+}
+
+// Validate checks the configuration for potential issues
+func (c *Config) Validate() error {
+	if len(c.Server.AllowedOrigins) == 0 {
+		return fmt.Errorf("server.allowed_origins cannot be empty")
+	}
+
+	for _, origin := range c.Server.AllowedOrigins {
+		if origin == "*" {
+			continue
+		}
+
+		u, err := url.Parse(origin)
+		if err != nil {
+			return fmt.Errorf("invalid allowed origin %q: %w", origin, err)
+		}
+
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return fmt.Errorf("invalid allowed origin %q: scheme must be http or https", origin)
+		}
+	}
+
+	return nil
 }
 
 // Address returns the server address in the format "host:port"

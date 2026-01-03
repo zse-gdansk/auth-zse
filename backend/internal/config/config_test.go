@@ -216,6 +216,8 @@ app:
 server:
   host: "localhost"
   port: 8000
+  allowed_origins:
+    - "*"
 
 auth:
   keys_path: "keys"
@@ -288,9 +290,10 @@ app:
 		require.NoError(t, err)
 
 		cfg, err := Load(configPath)
-		// Empty file should parse successfully but have zero values
-		require.NoError(t, err)
-		require.NotNil(t, cfg)
+		// Empty file should fail validation
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "config validation failed")
+		assert.Nil(t, cfg)
 	})
 
 	t.Run("partial config", func(t *testing.T) {
@@ -302,6 +305,7 @@ app:
   name: "partial-app"
 server:
   host: "localhost"
+  allowed_origins: ["*"]
 `
 		err := os.WriteFile(configPath, []byte(partialContent), 0644)
 		require.NoError(t, err)
@@ -441,6 +445,8 @@ app:
 server:
   host: "0.0.0.0"
   port: 9000
+  allowed_origins:
+    - "https://app.example.com"
 
 auth:
   keys_path: "/path/to/keys"
