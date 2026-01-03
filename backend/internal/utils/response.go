@@ -25,7 +25,8 @@ func ErrorResponse(c *fiber.Ctx, err any, code ...int) error {
 
 	switch e := err.(type) {
 	case *APIError:
-		apiError = e
+		clone := *e
+		apiError = &clone
 	case error:
 		apiError = &APIError{
 			Code:    "UNKNOWN_ERROR",
@@ -39,7 +40,8 @@ func ErrorResponse(c *fiber.Ctx, err any, code ...int) error {
 			Status:  fiber.StatusInternalServerError,
 		}
 	default:
-		apiError = ErrInternalServer
+		clone := *ErrInternalServer
+		apiError = &clone
 	}
 
 	// Override status code if provided
